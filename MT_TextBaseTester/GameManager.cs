@@ -5,6 +5,8 @@ namespace ChessMonsterTactics
 {
     public class GameManager
     {
+        private int difficulty; // Store selected difficulty level
+
         public void SetupGame()
         {
             LearningManager.Initialize();
@@ -15,7 +17,7 @@ namespace ChessMonsterTactics
             Console.WriteLine("2 - AI vs AI");
             Console.WriteLine("3 - How to Play");
             Console.WriteLine("4 - Piece Info");
-            Console.WriteLine("5 - Search for Piece"); // ✅ New option
+            Console.WriteLine("5 - Search for Piece");
             Console.WriteLine("Type 'quit' at any time to exit.");
 
             string choice = Console.ReadLine()?.Trim();
@@ -37,11 +39,24 @@ namespace ChessMonsterTactics
 
             if (choice == "5")
             {
-                SearchForPiece();  // ✅ New method call
+                SearchForPiece();
                 return;
             }
 
             bool aiVsAi = choice == "2";
+
+            Console.WriteLine("\nSelect Difficulty:");
+            Console.WriteLine("1 - Easy");
+            Console.WriteLine("2 - Medium");
+            Console.WriteLine("3 - Hard");
+
+            string difficultyInput = Console.ReadLine()?.Trim();
+            if (difficultyInput?.ToLower() == "quit") Environment.Exit(0);
+
+            if (!int.TryParse(difficultyInput, out difficulty) || difficulty < 1 || difficulty > 3)
+            {
+                difficulty = 1; // Default to Easy if invalid input
+            }
 
             Console.WriteLine("Do you want to: (1) Randomly generate pieces or (2) Select your own pieces?");
             string pieceChoice = Console.ReadLine()?.Trim();
@@ -63,6 +78,9 @@ namespace ChessMonsterTactics
             }
 
             board.ShowTeamPreview();
+
+            // Draw initial board (only needs to draw once at the start)
+            board.Renderer.DrawBoard();
 
             if (aiVsAi)
             {
@@ -86,7 +104,7 @@ namespace ChessMonsterTactics
             Console.WriteLine("============================================\n");
         }
 
-        void SearchForPiece() // ✅ New method
+        void SearchForPiece()
         {
             Console.WriteLine("\nEnter piece name (e.g., SparkPawn1) or type (e.g., Knight) to search:");
             string searchQuery = Console.ReadLine()?.Trim();
@@ -123,6 +141,16 @@ namespace ChessMonsterTactics
             Console.WriteLine($"Special Ability: {piece.Ability}");
             Console.WriteLine($"Passive Ability: {piece.Passive}");
             Console.WriteLine($"Pack: {piece.Pack}");
+
+            if (MonsterDatabase.EvolutionChains.TryGetValue(piece.Id, out var evolutions))
+            {
+                Console.WriteLine("Evolution Path:");
+                foreach (var evolution in evolutions)
+                {
+                    Console.WriteLine($"- Level {evolution.Level}: {evolution.EvolvedForm}");
+                }
+            }
+
             Console.WriteLine("==================================");
         }
 
@@ -134,10 +162,12 @@ namespace ChessMonsterTactics
 
             while (true)
             {
-                ai1.TakeTurn(board, "Player");
+                ai1.TakeTurn(board, "Player", difficulty);
+                board.Renderer.DrawBoard(); // Redraw only necessary tiles
                 if (CheckEndGame(board, out winner)) break;
 
-                ai2.TakeTurn(board, "AI");
+                ai2.TakeTurn(board, "AI", difficulty);
+                board.Renderer.DrawBoard(); // Redraw only necessary tiles
                 if (CheckEndGame(board, out winner)) break;
             }
 
@@ -153,9 +183,11 @@ namespace ChessMonsterTactics
             while (true)
             {
                 player.TakeTurn(board);
+                board.Renderer.DrawBoard(); // Redraw only necessary tiles
                 if (CheckEndGame(board, out winner)) break;
 
-                ai.TakeTurn(board, "AI");
+                ai.TakeTurn(board, "AI", difficulty);
+                board.Renderer.DrawBoard(); // Redraw only necessary tiles
                 if (CheckEndGame(board, out winner)) break;
             }
 

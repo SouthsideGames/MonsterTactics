@@ -8,150 +8,154 @@ namespace ChessMonsterTactics
     {
         private static Random random = new Random();
 
-        public void TakeTurn(Board board, string team)
+        public void TakeTurn(Board board, string team, int difficulty)
         {
             board.ProcessStartOfTurnEffects(team);
 
             var pieces = board.Pieces.Where(p => p.Team == team && p.Health > 0).ToList();
             if (pieces.Count == 0) return;
 
-            var bestAction = EvaluateBestAction(board, pieces, team);
-            ExecuteAction(board, bestAction);
-        }
-
-        private (Piece piece, string move, string ability) EvaluateBestAction(Board board, List<Piece> pieces, string team)
-        {
-            var bestAction = (piece: (Piece)null, move: (string)null, ability: (string)null);
-            int highestScore = int.MinValue;
-
             foreach (var piece in pieces)
             {
-                var legalMoves = MovementValidator.GetLegalMoves(piece, board.Pieces);
+                string move;
+
+                if (difficulty < 3) // Easy/Medium → Alpha-Beta Pruning
+                {
+                    move = FindBestMoveAlphaBeta(board, piece, 3, int.MinValue, int.MaxValue, true);
+                }
+                else // Hard → Monte Carlo Tree Search (MCTS)
+                {
+                    move = FindBestMoveMCTS(board, piece, 100);
+                }
+
+                if (!string.IsNullOrEmpty(move))
+                {
+                    board.LogTurn($"{piece.Team} {piece.Id} moved from {piece.Position} to {move}");
+                    piece.Position = move;
+                }
+                else
+                {
+                    board.LogTurn($"{piece.Team} {piece.Id} has no valid moves.");
+                }
+            }
+        }
+
+        // 🔹 Alpha-Beta Pruning for Easy & Medium AI
+        private string FindBestMoveAlphaBeta(Board board, Piece piece, int depth, int alpha, int beta, bool maximizingPlayer)
+        {
+            var legalMoves = MovementValidator.GetLegalMoves(piece, board.Pieces);
+            string bestMove = null;
+
+            if (depth == 0 || board.CheckWinCondition(out _))
+                return EvaluateBoard(board, piece.Team).ToString();
+
+            if (maximizingPlayer)
+            {
+                int maxEval = int.MinValue;
                 foreach (var move in legalMoves)
                 {
-                    int score = EvaluateMove(board, piece, move, team);
-                    if (score > highestScore)
-                    {
-                        highestScore = score;
-                        bestAction = (piece, move, null);
-                    }
-                }
+                    var simulatedBoard = board.Clone();
+                    simulatedBoard.MovePiece(piece, move);
 
-                if (CanUseAbility(piece, board))
+                    int eval = int.Parse(FindBestMoveAlphaBeta(simulatedBoard, piece, depth - 1, alpha, beta, false));
+                    if (eval > maxEval)
+                    {
+                        maxEval = eval;
+                        bestMove = move;
+                    }
+
+                    alpha = Math.Max(alpha, eval);
+                    if (beta <= alpha) break;
+                }
+                return depth == 3 ? bestMove : maxEval.ToString();
+            }
+            else
+            {
+                int minEval = int.MaxValue;
+                foreach (var move in legalMoves)
                 {
-                    int abilityScore = EvaluateAbility(board, piece, team);
-                    if (abilityScore > highestScore)
+                    var simulatedBoard = board.Clone();
+                    simulatedBoard.MovePiece(piece, move);
+
+                    int eval = int.Parse(FindBestMoveAlphaBeta(simulatedBoard, piece, depth - 1, alpha, beta, true));
+                    if (eval < minEval)
                     {
-                        highestScore = abilityScore;
-                        bestAction = (piece, null, piece.Ability);
+                        minEval = eval;
+                        bestMove = move;
                     }
+
+                    beta = Math.Min(beta, eval);
+                    if (beta <= alpha) break;
+                }
+                return depth == 3 ? bestMove : minEval.ToString();
+            }
+        }
+
+        // 🔹 Monte Carlo Tree Search (MCTS) for Hard AI
+        private string FindBestMoveMCTS(Board board, Piece piece, int simulations)
+        {
+            var legalMoves = MovementValidator.GetLegalMoves(piece, board.Pieces);
+            if (legalMoves.Count == 0) return null;
+
+            Dictionary<string, int> moveWins = new();
+            Dictionary<string, int> movePlays = new();
+
+            foreach (var move in legalMoves)
+            {
+                moveWins[move] = 0;
+                movePlays[move] = 0;
+
+                for (int i = 0; i < simulations; i++)
+                {
+                    var simulatedBoard = board.Clone();
+                    simulatedBoard.MovePiece(piece, move);
+
+                    string winner = SimulateRandomGame(simulatedBoard);
+                    if (winner == piece.Team)
+                        moveWins[move]++;
+                    movePlays[move]++;
                 }
             }
 
-            return bestAction;
+            return moveWins.OrderByDescending(kvp => (double)kvp.Value / movePlays[kvp.Key]).First().Key;
         }
 
-        private int EvaluateMove(Board board, Piece piece, string targetPosition, string team)
+        // 🔹 Simulate Random Game for MCTS
+        private string SimulateRandomGame(Board board)
+        {
+            string winner = null;  
+            while (!board.CheckWinCondition(out winner))
+            {
+                var pieces = board.Pieces.Where(p => p.Health > 0).ToList();
+                var piece = pieces[random.Next(pieces.Count)];
+                var moves = MovementValidator.GetLegalMoves(piece, board.Pieces);
+
+                if (moves.Count > 0)
+                {
+                    string move = moves[random.Next(moves.Count)];
+                    board.MovePiece(piece, move);
+                }
+            }
+
+            return winner;
+        }
+
+        // 🔹 Basic Board Evaluation for Alpha-Beta
+        private int EvaluateBoard(Board board, string team)
         {
             int score = 0;
-
-            // Check if capturing an enemy piece
-            var targetPiece = board.Pieces.FirstOrDefault(p => p.Position == targetPosition && p.Team != team);
-            if (targetPiece != null)
+            foreach (var piece in board.Pieces)
             {
-                score += 10 + (targetPiece.Health / 2); // Higher score for capturing higher HP pieces
+                if (piece.Team == team)
+                {
+                    score += piece.Health + piece.Attack * 2;
+                }
+                else
+                {
+                    score -= piece.Health + piece.Attack * 2;
+                }
             }
-
-            // Check if moving into threatened tile
-            if (board.IsTileUnderThreat(targetPosition, team))
-            {
-                score -= 5;  // Penalize moving into danger
-            }
-            else
-            {
-                score += 2;  // Safe move bonus
-            }
-
-            // Synergy Bonus - Staying near pack allies
-            if (board.Pieces.Any(p => p.Team == team && p.Pack == piece.Pack && p.Position != piece.Position && board.IsAdjacentToPosition(p.Position, targetPosition)))
-            {
-                score += 3;
-            }
-
-            // King Pressure - Moving adjacent to enemy king
-            var enemyKing = board.Pieces.FirstOrDefault(p => p.Team != team && p.Type == "King");
-            if (enemyKing != null && board.IsAdjacentToPosition(targetPosition, enemyKing.Position))
-            {
-                score += 5; // Extra pressure bonus
-            }
-
             return score;
-        }
-
-        private int EvaluateAbility(Board board, Piece piece, string team)
-        {
-            if (string.IsNullOrEmpty(piece.Ability)) return 0;
-
-            int score = 0;
-            if (piece.Ability.Contains("Damage") || piece.Ability.Contains("Pulse"))
-            {
-                var nearbyEnemies = board.Pieces
-                    .Where(p => p.Team != team && board.IsAdjacent(piece, p)).ToList();
-
-                score += nearbyEnemies.Count * 10; // Bonus for hitting multiple enemies
-            }
-
-            return score;
-        }
-
-        private bool CanUseAbility(Piece piece, Board board)
-        {
-            if (string.IsNullOrEmpty(piece.Ability)) return false;
-
-            string abilityName = piece.Ability.Split('–')[0].Trim();
-            if (MonsterDatabase.AbilityCosts.TryGetValue(abilityName, out int cost))
-            {
-                return piece.Energy >= cost;
-            }
-
-            return false;
-        }
-
-        private void ExecuteAction(Board board, (Piece piece, string move, string ability) action)
-        {
-            if (action.ability != null)
-            {
-                UseAbility(action.piece, board);
-            }
-            else if (action.move != null)
-            {
-                board.LogTurn($"{action.piece.Team} {action.piece.Id} moved from {action.piece.Position} to {action.move}");
-                action.piece.Position = action.move;
-            }
-        }
-
-        private void UseAbility(Piece piece, Board board)
-        {
-            string abilityName = piece.Ability.Split('–')[0].Trim();
-
-            if (!MonsterDatabase.AbilityCosts.TryGetValue(abilityName, out int cost))
-                return;
-
-            if (piece.Energy < cost) return;
-
-            piece.Energy -= cost;
-
-            if (MonsterDatabase.AbilityDescriptions.TryGetValue(abilityName, out string description))
-            {
-                Console.WriteLine($"{piece.Team} {piece.Id} uses {abilityName}: {description}");
-            }
-            else
-            {
-                Console.WriteLine($"{piece.Team} {piece.Id} uses {abilityName}!");
-            }
-
-            board.LogTurn($"{piece.Team} {piece.Id} used {abilityName}");
-            board.ApplyAbilityEffect(piece, abilityName);
         }
     }
 }

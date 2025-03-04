@@ -8,6 +8,8 @@ namespace ChessMonsterTactics
     {
         public List<Piece> Pieces = new List<Piece>();
         public List<string> TurnHistory { get; private set; } = new List<string>();
+        public BoardRenderer Renderer { get; private set; } = new BoardRenderer();
+        
 
         public void RandomlyGeneratePieces()
         {
@@ -455,7 +457,24 @@ namespace ChessMonsterTactics
         }
 
 
-        
+        public Board Clone()
+        {
+            var clonedBoard = new Board
+            {
+                Pieces = Pieces.Select(p => p.Clone()).ToList(),
+                TurnHistory = new List<string>(TurnHistory)
+            };
+            return clonedBoard;
+        }
+
+        public void MovePiece(Piece piece, string newPosition)
+        {
+            var pieceToMove = Pieces.FirstOrDefault(p => p.Id == piece.Id);
+            if (pieceToMove != null)
+            {
+                pieceToMove.Position = newPosition;
+            }
+        }
 
     }
 }
