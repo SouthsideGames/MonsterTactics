@@ -5,65 +5,65 @@ namespace ChessMonsterTactics
 {
     public class BoardRenderer
     {
-        private readonly Dictionary<string, Tile> tiles;
+        public Dictionary<string, Tile> TileMap { get; private set; } = new();
 
-        public BoardRenderer()
+        public void Initialize()
         {
-            tiles = new Dictionary<string, Tile>();
-
-            string files = "ABCDEFGH";
-            for (int rank = 1; rank <= 8; rank++)
+            TileMap.Clear();
+            for (char file = 'A'; file <= 'H'; file++)
             {
-                foreach (char file in files)
+                for (int rank = 1; rank <= 8; rank++)
                 {
                     string position = $"{file}{rank}";
-                    tiles[position] = new Tile(position);
+                    TileMap[position] = new Tile { Position = position, OccupyingPiece = null };
                 }
             }
         }
 
         public void UpdateTile(string position, Piece piece)
         {
-            if (tiles.ContainsKey(position))
+            if (TileMap.ContainsKey(position))
             {
-                if (piece != null)
+                TileMap[position].OccupyingPiece = piece;
+            }
+            else
+            {
+                TileMap[position] = new Tile { Position = position, OccupyingPiece = piece };
+            }
+        }
+
+        public List<string> GetAllEmptyTiles()
+        {
+            List<string> emptyTiles = new List<string>();
+
+            foreach (var kvp in TileMap)
+            {
+                if (kvp.Value.OccupyingPiece == null)
                 {
-                    tiles[position].PlacePiece(piece);
-                }
-                else
-                {
-                    tiles[position].ClearPiece();
+                    emptyTiles.Add(kvp.Key);
                 }
             }
+
+            return emptyTiles;
         }
 
         public void DrawBoard()
         {
-            Console.WriteLine("\nCurrent Board:");
-
-            foreach (var tile in tiles.Values)
+            Console.WriteLine("\n=== Current Board State ===");
+            foreach (var kvp in TileMap)
             {
-                if (tile.NeedsRedraw)
+                var tile = kvp.Value;
+                if (tile.OccupyingPiece != null)
                 {
-                    DrawTile(tile);
-                    tile.NeedsRedraw = false;  // Reset the flag after drawing
+                    var piece = tile.OccupyingPiece;
+                    Console.WriteLine($"{piece.Team} {piece.Id} ({piece.Type}) at {tile.Position} - HP: {piece.Health} Energy: {piece.Energy} Level: {piece.Level}");
+                }
+                else
+                {
+                    Console.WriteLine($"Empty Tile at {tile.Position}");
                 }
             }
-
-            Console.WriteLine();
-        }
-
-        private void DrawTile(Tile tile)
-        {
-            if (tile.OccupyingPiece != null)
-            {
-                var piece = tile.OccupyingPiece;
-                Console.WriteLine($"{piece.Team} {piece.Id} ({piece.Type}) at {tile.Position} - HP: {piece.Health} Energy: {piece.Energy}");
-            }
-            else
-            {
-                Console.WriteLine($"Empty Tile at {tile.Position}");
-            }
+            Console.WriteLine("=================================");
         }
     }
 }

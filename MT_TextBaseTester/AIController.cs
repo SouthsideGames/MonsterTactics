@@ -8,6 +8,8 @@ namespace ChessMonsterTactics
     {
         private static Random random = new Random();
 
+        
+
         public void TakeTurn(Board board, string team, int difficulty)
         {
             board.ProcessStartOfTurnEffects(team);
@@ -157,5 +159,31 @@ namespace ChessMonsterTactics
             }
             return score;
         }
+
+        private void UseAbility(Piece piece, Board board)
+        {
+            string abilityName = piece.Ability.Split('–')[0].Trim();
+
+            if (!MonsterDatabase.AbilityCosts.TryGetValue(abilityName, out int abilityCost))
+                return;
+
+            int adjustedCost = Math.Max(1, abilityCost + piece.EnergyCostModifier);  // <-- Place here
+            if (piece.Energy < adjustedCost) return;
+
+            piece.Energy -= adjustedCost;
+
+            if (MonsterDatabase.AbilityDescriptions.TryGetValue(abilityName, out string description))
+            {
+                Console.WriteLine($"{piece.Team} {piece.Id} uses {abilityName}: {description}");
+            }
+            else
+            {
+                Console.WriteLine($"{piece.Team} {piece.Id} uses {abilityName}!");
+            }
+
+            board.LogTurn($"{piece.Team} {piece.Id} used {abilityName}");
+            board.ApplyAbilityEffect(piece, abilityName);
+        }
+
     }
 }

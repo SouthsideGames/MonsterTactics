@@ -8,20 +8,18 @@ namespace ChessMonsterTactics
     public static class LearningManager
     {
         private const string FilePath = "ai_memory.json";
+        private const string HallOfFameFile = "hall_of_fame.json";  // New file for piece stats
 
-        // Data structure to track player and AI performance.
         private class LearningData
         {
             public int PlayerWins { get; set; } = 0;
             public int AIWins { get; set; } = 0;
-
-            // Future placeholder: Track most used pieces or stats across games.
-            public Dictionary<string, int> PieceUsage { get; set; } = new Dictionary<string, int>();
         }
 
         private static LearningData data;
 
-        // Load data at the start of the game.
+        private static Dictionary<string, PieceStats> hallOfFame;
+
         public static void Initialize()
         {
             if (File.Exists(FilePath))
@@ -33,9 +31,10 @@ namespace ChessMonsterTactics
             {
                 data = new LearningData();
             }
+
+            hallOfFame = LoadHallOfFame();  // Load piece stats
         }
 
-        // Display current win/loss stats at the start of the game.
         public static void ShowCurrentStats()
         {
             Console.WriteLine("=== Current Performance Stats ===");
@@ -44,7 +43,6 @@ namespace ChessMonsterTactics
             Console.WriteLine("=================================");
         }
 
-        // Record match result after a game ends.
         public static void RecordMatchResult(string winner, List<Piece> finalPieces)
         {
             if (winner.Contains("Player"))
@@ -56,28 +54,50 @@ namespace ChessMonsterTactics
                 data.AIWins++;
             }
 
-            TrackPieceUsage(finalPieces);
             SaveData();
+            SaveHallOfFame(finalPieces);  // Track individual piece stats after each match
         }
 
-        // Track how often each piece was used in completed matches (optional future system).
-        private static void TrackPieceUsage(List<Piece> pieces)
-        {
-            foreach (var piece in pieces)
-            {
-                if (!data.PieceUsage.ContainsKey(piece.Id))
-                {
-                    data.PieceUsage[piece.Id] = 0;
-                }
-                data.PieceUsage[piece.Id]++;
-            }
-        }
-
-        // Save data to JSON file.
         private static void SaveData()
         {
             string json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(FilePath, json);
         }
+
+        // --- New Section for Hall of Fame ---
+
+        public static void SaveHallOfFame(List<Piece> finalPieces)
+        {
+            foreach (var piece in finalPieces)
+            {
+                if (!hallOfFame.ContainsKey(piece.Id))
+                {
+                    hallOfFame[piece.Id] = new PieceStats();
+                }
+
+                hallOfFame[piece.Id].TotalKills += piece.TotalKills;
+                hallOfFame[piece.Id].TotalDamageDealt += piece.TotalDamageDealt;
+                if (piece.Health > 0) hallOfFame[piece.Id].TotalWins++;
+            }
+
+            File.WriteAllText(HallOfFameFile, JsonSerializer.Serialize(hallOfFame, new JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        public static Dictionary<string, PieceStats> LoadHallOfFame()
+        {
+            if (File.Exists(HallOfFameFile))
+            {
+                string json = File.ReadAllText(HallOfFameFile);
+                return JsonSerializer.Deserialize<Dictionary<string, PieceStats>>(json);
+            }
+            return new Dictionary<string, PieceStats>();
+        }
+    }
+
+    public class PieceStats
+    {
+        public int TotalWins { get; set; }
+        public int TotalKills { get; set; }
+        public int TotalDamageDealt { get; set; }
     }
 }

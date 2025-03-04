@@ -19,6 +19,7 @@ namespace ChessMonsterTactics
         public int TotalKills { get; set; } = 0;
         public int Level { get; set; } = 1;
         public int Experience { get; set; } = 0;
+        public int EnergyCostModifier { get; set; } = 0;  // Default: No cost change
 
         public bool UltimateUnlocked { get; set; } = false;
         public int UltimateCharge { get; set; } = 0;

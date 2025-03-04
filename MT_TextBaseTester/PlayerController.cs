@@ -6,14 +6,19 @@ namespace ChessMonsterTactics
     {
         public void TakeTurn(Board board)
         {
-            board.ProcessStartOfTurnEffects("Player");
-            
             while (true)
             {
-                Console.WriteLine("Your turn. Enter piece type and position (e.g., Pawn at A1):");
+                Console.WriteLine("Your turn. Enter piece type and position (e.g., Pawn at A1), or type 'boardstate' to view the board:");
                 string input = Console.ReadLine()?.Trim();
 
-                if (input?.ToLower() == "quit") Environment.Exit(0);
+                if (input?.ToLower() == "quit") 
+                    Environment.Exit(0);
+
+                if (input?.ToLower() == "boardstate")
+                {
+                    board.Renderer.DrawBoard();
+                    continue;  // Show the board, then loop back to asking for a piece.
+                }
 
                 string[] parts = input.Split(" at ");
                 if (parts.Length != 2)
@@ -22,10 +27,11 @@ namespace ChessMonsterTactics
                     continue;
                 }
 
-                string pieceType = parts[0];
-                string position = parts[1];
+                string pieceType = parts[0].Trim();
+                string position = parts[1].Trim();
 
-                var piece = board.Pieces.Find(p => p.Team == "Player" && p.Type == pieceType && p.Position == position);
+                var piece = board.Pieces.Find(p => p.Team == "Player" && p.Type.Equals(pieceType, StringComparison.OrdinalIgnoreCase) && p.Position == position);
+
                 if (piece == null)
                 {
                     Console.WriteLine("Invalid piece or position. Please try again.");
@@ -37,13 +43,16 @@ namespace ChessMonsterTactics
                 Console.WriteLine("2 - Use Ability");
 
                 string action = Console.ReadLine()?.Trim();
-                if (action == "quit") Environment.Exit(0);
+                if (action?.ToLower() == "quit")
+                    Environment.Exit(0);
 
                 if (action == "1")
                 {
                     Console.WriteLine($"Where do you want to move {piece.Id}?");
+
                     string newPosition = Console.ReadLine()?.Trim();
-                    if (newPosition?.ToLower() == "quit") Environment.Exit(0);
+                    if (newPosition?.ToLower() == "quit")
+                        Environment.Exit(0);
 
                     if (!MovementValidator.IsMoveLegal(piece, newPosition, board.Pieces))
                     {
@@ -51,14 +60,14 @@ namespace ChessMonsterTactics
                         continue;
                     }
 
-                    board.LogTurn($"{piece.Team} {piece.Id} moved from {piece.Position} to {newPosition}");
-                    piece.Position = newPosition;
-                    break;
+                    board.MovePiece(piece, newPosition);
+                    board.LogTurn($"{piece.Team} {piece.Id} moved to {newPosition}");
+                    break;  // Move ends the turn
                 }
                 else if (action == "2")
                 {
                     UseAbility(piece, board);
-                    break;
+                    break;  // Ability use ends the turn
                 }
                 else
                 {
@@ -77,19 +86,20 @@ namespace ChessMonsterTactics
 
             string abilityName = piece.Ability.Split('–')[0].Trim();
 
-            if (!MonsterDatabase.AbilityCosts.TryGetValue(abilityName, out int cost))
+            if (!MonsterDatabase.AbilityCosts.TryGetValue(abilityName, out int abilityCost))
             {
                 Console.WriteLine($"Unknown ability: {abilityName}");
                 return;
             }
 
-            if (piece.Energy < cost)
+            int adjustedCost = Math.Max(1, abilityCost + piece.EnergyCostModifier);  // <-- Place here
+            if (piece.Energy < adjustedCost)
             {
-                Console.WriteLine($"{piece.Id} does not have enough energy to use {abilityName}.");
+                Console.WriteLine($"{piece.Id} does not have enough energy to use {abilityName} (cost: {adjustedCost}).");
                 return;
             }
 
-            piece.Energy -= cost;
+            piece.Energy -= adjustedCost;
 
             if (MonsterDatabase.AbilityDescriptions.TryGetValue(abilityName, out string description))
             {

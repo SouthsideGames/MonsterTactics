@@ -2,10 +2,12 @@ namespace ChessMonsterTactics
 {
     public class Tile
     {
-        public string Position;
-        public Piece OccupyingPiece;
-        public bool NeedsRedraw;
+        public string Position { get; set; }   // Example: "A1", "B2"
+        public Piece OccupyingPiece { get; set; }  // Null if empty
+        public bool NeedsRedraw { get; set; } = true;  // Optional,
 
+        public Tile() {}
+        
         public Tile(string position)
         {
             Position = position;
