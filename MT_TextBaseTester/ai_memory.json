@@ -1,0 +1,62 @@
+{
+  "FireKnight1": {
+    "WinCount": 3,
+    "LossCount": 4,
+    "TotalSurvivalTurns": 7
+  },
+  "AquaBishop1": {
+    "WinCount": 1,
+    "LossCount": 3,
+    "TotalSurvivalTurns": 4
+  },
+  "EarthRook1": {
+    "WinCount": 2,
+    "LossCount": 5,
+    "TotalSurvivalTurns": 7
+  },
+  "ShadowPawn1": {
+    "WinCount": 6,
+    "LossCount": 8,
+    "TotalSurvivalTurns": 14
+  },
+  "ArcaneBishop1": {
+    "WinCount": 3,
+    "LossCount": 2,
+    "TotalSurvivalTurns": 5
+  },
+  "PsychicQueen1": {
+    "WinCount": 2,
+    "LossCount": 1,
+    "TotalSurvivalTurns": 3
+  },
+  "SparkPawn1": {
+    "WinCount": 12,
+    "LossCount": 8,
+    "TotalSurvivalTurns": 20
+  },
+  "OverclockKnight1": {
+    "WinCount": 1,
+    "LossCount": 2,
+    "TotalSurvivalTurns": 3
+  },
+  "NeuroBishop1": {
+    "WinCount": 2,
+    "LossCount": 1,
+    "TotalSurvivalTurns": 3
+  },
+  "NanoRook1": {
+    "WinCount": 2,
+    "LossCount": 1,
+    "TotalSurvivalTurns": 3
+  },
+  "PlasmaQueen1": {
+    "WinCount": 2,
+    "LossCount": 1,
+    "TotalSurvivalTurns": 3
+  },
+  "TitanCoreKing1": {
+    "WinCount": 2,
+    "LossCount": 2,
+    "TotalSurvivalTurns": 4
+  }
+}
