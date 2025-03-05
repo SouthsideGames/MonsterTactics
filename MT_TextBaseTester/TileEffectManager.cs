@@ -55,7 +55,7 @@ namespace ChessMonsterTactics
                     break;
 
                 case "Shielded":
-                    piece.Defense += 2; // Temporary defense buff
+                    piece.Defense += 2;
                     _board.LogTurn($"{piece.Team} {piece.Id} gained +2 defense from Shielded Tile at {piece.Position}!");
                     break;
 
@@ -96,16 +96,16 @@ namespace ChessMonsterTactics
         public string GetRandomSafeTile()
         {
             var emptyTiles = GenerateAllBoardTiles()
-            .Where(tile => !_board.Pieces.Any(p => p.Position == tile))
-            .ToList();
+                .Where(tile => !_board.Pieces.Any(p => p.Position == tile))
+                .ToList();
 
             if (emptyTiles.Count > 0)
             {
                 Random rand = new Random();
                 return emptyTiles[rand.Next(emptyTiles.Count)];
             }
-            
-            return "A1";  // Fallback if all tiles are full (shouldn't happen).
+
+            return "A1";  // Fallback if all tiles are full
         }
 
         public void SetTileEffect(string position, string effect)
@@ -137,16 +137,15 @@ namespace ChessMonsterTactics
             return allTiles;
         }
 
-       public void ApplyEffectsToAllPieces(Board board)
+        public void ApplyEffectsToAllPieces(Board board)
         {
             foreach (var piece in board.Pieces.Where(p => p.Health > 0))
             {
                 if (TileEffects.TryGetValue(piece.Position, out string effect))
                 {
-                    ApplyTileEffect(piece, effect);  // Now we have the effect!
+                    ApplyTileEffect(piece, effect);
                 }
             }
         }
-
     }
 }
