@@ -11,12 +11,19 @@ namespace ChessMonsterTactics
                 Console.WriteLine("Your turn. Enter piece type and position (e.g., Pawn at A1) or type 'boardstate' to view the full board:");
                 string input = Console.ReadLine()?.Trim();
 
-                if (input?.ToLower() == "quit") Environment.Exit(0);
+                if (input?.ToLower() == "quit")
+                    Environment.Exit(0);
 
                 if (input?.ToLower() == "boardstate")
                 {
                     board.DisplayBoard();
-                    continue;  // Show boardstate and ask for input again.
+                    continue;  // Show boardstate and prompt again.
+                }
+
+                if (input?.ToLower() == "scan")
+                {
+                    board.DisplayBoard();  // You could also use PerformBattlefieldScan if you want a more detailed view
+                    continue;
                 }
 
                 string[] parts = input.Split(" at ");
@@ -29,7 +36,10 @@ namespace ChessMonsterTactics
                 string pieceType = parts[0];
                 string position = parts[1];
 
-                var piece = board.Pieces.Find(p => p.Team == "Player" && p.Type.Equals(pieceType, StringComparison.OrdinalIgnoreCase) && p.Position == position);
+                var piece = board.Pieces.Find(p => p.Team == "Player" &&
+                                                    p.Type.Equals(pieceType, StringComparison.OrdinalIgnoreCase) &&
+                                                    p.Position.Equals(position, StringComparison.OrdinalIgnoreCase));
+
                 if (piece == null)
                 {
                     Console.WriteLine("Invalid piece or position. Please try again.");
@@ -41,13 +51,15 @@ namespace ChessMonsterTactics
                 Console.WriteLine("2 - Use Ability");
 
                 string action = Console.ReadLine()?.Trim();
-                if (action?.ToLower() == "quit") Environment.Exit(0);
+                if (action?.ToLower() == "quit")
+                    Environment.Exit(0);
 
                 if (action == "1")
                 {
                     Console.WriteLine($"Where do you want to move {piece.Id}?");
                     string newPosition = Console.ReadLine()?.Trim();
-                    if (newPosition?.ToLower() == "quit") Environment.Exit(0);
+                    if (newPosition?.ToLower() == "quit")
+                        Environment.Exit(0);
 
                     if (!MovementValidator.IsMoveLegal(piece, newPosition, board.Pieces))
                     {
@@ -58,14 +70,19 @@ namespace ChessMonsterTactics
                     board.LogTurn($"{piece.Team} {piece.Id} moved from {piece.Position} to {newPosition}");
 
                     board.MovePiece(piece, newPosition);
-                    board.CheckPawnPromotion(piece); 
-                    board.ApplyTileEffectsToAllPieces();   
-                    
-                    break;
+                    board.CheckPawnPromotion(piece);  // ✅ Promotion check after every move.
+
+                    // ✅ Immediately apply tile entry effects (like Warp or Spiked)
+                    board.TileEffects?.ApplyOnEntryEffects(piece, newPosition);
+
+                    // ✅ Apply ongoing effects like Burning or Healing to ALL pieces
+                    board.TileEffects?.ApplyEffectsToAllPieces(board);
+
+                    break;  // End turn after successful move.
                 }
                 else if (action == "2")
                 {
-                    if (string.IsNullOrEmpty(piece.Ability) || piece.Ability == "None")
+                    if (string.IsNullOrEmpty(piece.Ability) || piece.Ability.Equals("None", StringComparison.OrdinalIgnoreCase))
                     {
                         Console.WriteLine($"{piece.Id} has no usable ability.");
                         continue;
@@ -85,8 +102,8 @@ namespace ChessMonsterTactics
                         continue;
                     }
 
-                    board.AbilityManager.UseAbility(piece, abilityName);
-                    break;
+                    board.AbilityManager?.UseAbility(piece, abilityName);
+                    break;  // End turn after ability use.
                 }
                 else
                 {

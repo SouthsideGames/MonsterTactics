@@ -147,5 +147,15 @@ namespace ChessMonsterTactics
                 }
             }
         }
+
+        public Dictionary<string, string> CloneTileEffects()
+        {
+            return new Dictionary<string, string>(TileEffects);
+        }
+
+        public void RestoreTileEffects(Dictionary<string, string> effects)
+        {
+            TileEffects = new Dictionary<string, string>(effects);
+        }
     }
 }

@@ -10,12 +10,13 @@ namespace ChessMonsterTactics
         private readonly Board _board;
         private string _personalityType;
         private readonly Random _random = new();
+        private AIPersonalityType personalityType;
 
-        public AIPersonalityManager(Board board, string aiName)
+        public AIPersonalityManager(Board board, string aiName, AIPersonalityType personality)
         {
-            _board = board;
-            _aiName = aiName;
-            LoadPersonality();
+            this._board = board;
+            this._aiName = aiName;
+            this.personalityType = personality;
         }
 
         private void LoadPersonality()
@@ -54,18 +55,24 @@ namespace ChessMonsterTactics
         {
             int score = 0;
 
-            switch (_personalityType)
+            switch (personalityType)
             {
-                case "Aggressive":
-                    score += EvaluateAggressiveMoveBonus(piece, move);
+                case AIPersonalityType.Aggressive:
+                    if (IsNearEnemy(piece, move)) score += 5;  // Aggressive AI likes engaging enemies
                     break;
 
-                case "Defensive":
-                    score += EvaluateDefensiveMoveBonus(piece, move);
+                case AIPersonalityType.Defensive:
+                    if (IsNearAlly(piece, move)) score += 3;  // Defensive AI prefers clustering with allies
+                    if (_board.IsTileDefensive(move)) score += 5;  // Defensive AI likes defensive tiles
                     break;
 
-                case "SynergyHunter":
-                    score += EvaluateSynergyHunterMoveBonus(piece, move);
+                case AIPersonalityType.Sneaky:
+                    if (_board.IsTileSafe(move)) score += 4;  // Sneaky AI prefers hiding in safe tiles
+                    break;
+
+                case AIPersonalityType.Balanced:
+                default:
+                    // No special bias
                     break;
             }
 
@@ -100,6 +107,16 @@ namespace ChessMonsterTactics
         {
             var nearbySamePack = _board.Pieces.Any(p => p.Team == piece.Team && p.Pack == piece.Pack && _board.IsAdjacentToPosition(p.Position, move));
             return nearbySamePack ? 10 : 0;  // Bonus for staying near same-pack pieces
+        }
+
+        private bool IsNearEnemy(Piece piece, string position)
+        {
+            return _board.Pieces.Any(p => p.Team != piece.Team && _board.IsAdjacentToPosition(p.Position, position));
+        }
+
+        private bool IsNearAlly(Piece piece, string position)
+        {
+            return _board.Pieces.Any(p => p.Team == piece.Team && p.Id != piece.Id && _board.IsAdjacentToPosition(p.Position, position));
         }
     }
 }

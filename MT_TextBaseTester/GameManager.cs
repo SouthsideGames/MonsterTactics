@@ -7,6 +7,8 @@ namespace ChessMonsterTactics
     public class GameManager
     {
         private int difficulty;  // Easy, Medium, Hard
+        private bool debugMode = false;
+        private int currentTurnNumber = 1;
         private static readonly Random random = new();
 
         public void SetupGame()
@@ -44,6 +46,7 @@ namespace ChessMonsterTactics
                 SearchForPiece();
                 return;
             }
+            
 
             bool aiVsAi = choice == "2";
 
@@ -96,6 +99,14 @@ namespace ChessMonsterTactics
             else
             {
                 RunPlayerVsAi(board);
+            }
+
+            if (!aiVsAi)
+            {
+                Console.WriteLine("Enable Debug Mode? (y/n)");
+                string debugInput = Console.ReadLine()?.Trim().ToLower();
+
+                debugMode = (debugInput == "y");
             }
         }
 
@@ -187,15 +198,46 @@ namespace ChessMonsterTactics
 
             while (true)
             {
+                if (debugMode)
+                {
+                    Console.WriteLine("Enter 'rewind' to roll back a turn, 'scan' to view the board, or press Enter to begin your turn.");
+                    string input = Console.ReadLine()?.Trim();
+
+                    if (input == "rewind")
+                    {
+                        HandleRewindCommand(board);
+                        continue;  // Skip AI turn after rewind.
+                    }
+                    else if (input == "scan")
+                    {
+                        PerformBattlefieldScan(board);
+                        continue;
+                    }
+                }
+
                 player.TakeTurn(board);
+
+                if (debugMode)
+                {
+                    board.SaveSnapshot(currentTurnNumber++);
+                }
+
                 if (CheckEndGame(board, out winner)) break;
 
                 ai.TakeTurn(board, "AI", difficulty);
+
+                if (debugMode)
+                {
+                    board.SaveSnapshot(currentTurnNumber++);
+                }
+
                 if (CheckEndGame(board, out winner)) break;
             }
 
             ShowMatchSummary(board, winner);
         }
+
+
 
         bool CheckEndGame(Board board, out string winner)
         {
@@ -228,5 +270,108 @@ namespace ChessMonsterTactics
 
             board.ShowDetailedEndOfGameReport(winner);
         }
+
+        public void HandlePieceInfoCommand(string input, Board board)
+        {
+            if (input.StartsWith("pieceinfo ", StringComparison.OrdinalIgnoreCase))
+            {
+                string pieceId = input.Substring(10).Trim();  // Extract the piece ID after "pieceinfo"
+
+                var piece = board.Pieces.FirstOrDefault(p => p.Id.Equals(pieceId, StringComparison.OrdinalIgnoreCase));
+
+                if (piece != null)
+                {
+                    Console.WriteLine($"\n=== Piece Info: {piece.Id} ===");
+                    Console.WriteLine($"Type: {piece.Type}");
+                    Console.WriteLine($"Health: {piece.Health}");
+                    Console.WriteLine($"Attack: {piece.Attack}");
+                    Console.WriteLine($"Defense: {piece.Defense}");
+                    Console.WriteLine($"Speed: {piece.Speed}");
+                    Console.WriteLine($"Energy: {piece.Energy}");
+                    Console.WriteLine($"Special Ability: {piece.Ability}");
+                    Console.WriteLine($"Passive Ability: {piece.Passive}");
+                    Console.WriteLine($"Position: {piece.Position}");
+                    Console.WriteLine($"Level: {piece.Level}");
+                    Console.WriteLine($"Kills: {piece.TotalKills}");
+                    Console.WriteLine($"Damage Dealt: {piece.TotalDamageDealt}");
+                    Console.WriteLine($"Pack: {piece.Pack}");
+
+                    if (MonsterDatabase.EvolutionChains.TryGetValue(piece.Id, out var evolutions))
+                    {
+                        Console.WriteLine("Evolution Path:");
+                        foreach (var evolution in evolutions)
+                        {
+                            Console.WriteLine($"- Level {evolution.Level}: {evolution.EvolvedForm}");
+                        }
+                    }
+                    Console.WriteLine("======================\n");
+                }
+                else
+                {
+                    Console.WriteLine($"Piece '{pieceId}' not found on the board.");
+                }
+            }
+        }
+
+        public void PerformBattlefieldScan(Board board)
+        {
+            Console.WriteLine("\n=== Battlefield Scan ===");
+
+            foreach (var piece in board.Pieces.OrderBy(p => p.Team).ThenBy(p => p.Type))
+            {
+                string status = GetPieceStatus(board, piece);
+                Console.WriteLine($"{piece.Team} {piece.Id} ({piece.Type}) - HP: {piece.Health}, Energy: {piece.Energy}, Position: {piece.Position} {status}");
+            }
+
+            Console.WriteLine("==================================\n");
+        }
+
+        private string GetPieceStatus(Board board, Piece piece)
+        {
+            List<string> statuses = new List<string>();
+
+            if (board.TileEffects?.TileEffects.TryGetValue(piece.Position, out string tileEffect) == true)
+            {
+                statuses.Add($"[{tileEffect}]");
+            }
+
+            if (piece.Health <= 0)
+            {
+                statuses.Add("(Eliminated)");
+            }
+
+            return statuses.Count > 0 ? string.Join(" ", statuses) : "";
+        }
+
+        public void HandleRewindCommand(Board board)
+        {
+            if (board.Snapshots.Count == 0)
+            {
+                Console.WriteLine("No snapshots available to rewind.");
+                return;
+            }
+
+            Console.WriteLine("\nAvailable Turns to Rewind To:");
+            foreach (var snapshot in board.Snapshots)
+            {
+                Console.WriteLine($"- Turn {snapshot.TurnNumber}");
+            }
+
+            Console.Write("\nEnter turn number to rewind to: ");
+            if (int.TryParse(Console.ReadLine(), out int turnNumber))
+            {
+                var snapshot = board.Snapshots.FirstOrDefault(s => s.TurnNumber == turnNumber);
+                if (snapshot != null)
+                {
+                    board.RestoreSnapshot(snapshot);
+                    Console.WriteLine($"✅ Rewound to Turn {turnNumber}.");
+                }
+                else
+                {
+                    Console.WriteLine("❌ Invalid turn number.");
+                }
+            }
+        }
+
     }
 }

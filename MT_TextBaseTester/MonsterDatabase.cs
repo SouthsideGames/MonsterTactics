@@ -197,5 +197,13 @@ namespace ChessMonsterTactics
                 _ => "A1"
             };
         }
+
+        public static readonly Dictionary<string, AIPersonalityType> PackPersonalities = new()
+        {
+            { "Starter Pack", AIPersonalityType.Balanced },
+            { "Fire Pack", AIPersonalityType.Aggressive },
+            { "Cyber Pack", AIPersonalityType.Defensive },
+            { "Shadow Pack", AIPersonalityType.Sneaky }
+        };
     }
 }

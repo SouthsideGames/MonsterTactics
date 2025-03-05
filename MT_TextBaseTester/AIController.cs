@@ -15,7 +15,10 @@ namespace ChessMonsterTactics
 
             if (personalityManager == null)
             {
-                personalityManager = new AIPersonalityManager(board, $"{team}_AI");
+                var aiPack = board.GetAIPack();
+                var personality = MonsterDatabase.PackPersonalities.ContainsKey(aiPack) ? MonsterDatabase.PackPersonalities[aiPack] : AIPersonalityType.Balanced;
+
+                personalityManager = new AIPersonalityManager(board, $"{team}_AI", personality);
             }
 
             var pieces = board.Pieces.Where(p => p.Team == team && p.Health > 0).ToList();

@@ -8,6 +8,8 @@ namespace ChessMonsterTactics
     {
         public List<Piece> Pieces = new List<Piece>();
         public List<string> TurnHistory { get; private set; } = new();
+        public Stack<List<Piece>> BoardHistory = new();
+        public List<BoardSnapshot> Snapshots = new List<BoardSnapshot>();
         private static readonly Random Random = new Random();
 
         // New managers
@@ -304,7 +306,55 @@ namespace ChessMonsterTactics
             TileEffects.ApplyEffectsToAllPieces(this);
         }
 
-                
+
+        public void SaveSnapshot(int turnNumber)
+        {
+            var snapshot = new BoardSnapshot
+            {
+                TurnNumber = turnNumber,
+                Pieces = Pieces.Select(p => p.Clone()).ToList(),
+                TileEffects = TileEffects?.CloneTileEffects() ?? new Dictionary<string, string>()
+            };
+
+            Snapshots.Add(snapshot);
+        }
+
+        public void RestoreSnapshot(BoardSnapshot snapshot)
+        {
+            Pieces = snapshot.Pieces.Select(p => p.Clone()).ToList();
+            TileEffects?.RestoreTileEffects(snapshot.TileEffects);
+            LogTurn($"Rewound to Turn {snapshot.TurnNumber}");
+        }     
+
+        public string GetAIPack()
+        {
+            var aiPiece = Pieces.FirstOrDefault(p => p.Team == "AI");
+            return aiPiece?.Pack ?? "Starter Pack";
+        }
+
+        public bool IsTileSafe(string position)
+        {
+            // Safe means: No enemies threaten this tile, and the tile effect is not harmful.
+            if (IsTileUnderThreat(position, "AI"))
+                return false;  // AI is looking for safe tiles for its own pieces.
+
+            if (TileEffects.TileEffects.TryGetValue(position, out string effect))
+            {
+                // If there’s an effect, check if it’s harmful.
+                string[] harmfulEffects = { "Burning", "Poisoned", "Cursed", "Spiked" };
+                if (harmfulEffects.Contains(effect))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        public bool IsTileDefensive(string position)
+        {
+            return TileEffects.TileEffects.TryGetValue(position, out string effect) && effect == "Shielded";
+        }
 
     }
 }
