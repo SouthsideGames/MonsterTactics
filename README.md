@@ -19,7 +19,6 @@ Chess Monster Tactics combines the strategic movement of chess with monster batt
 - End-of-Game Performance Reports
 
 ### Current Packs
-- Starter Pack
 - Fire Pack
 - Cyber Pack
 - Shadow Pack
