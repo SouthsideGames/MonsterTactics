@@ -217,7 +217,11 @@ namespace ChessMonsterTactics
                 board.LogTurn($"{action.piece.Team} {action.piece.Id} moved from {action.piece.Position} to {action.move}");
                 board.MovePiece(action.piece, action.move);
 
+                // ✅ Automatically check for promotion after AI moves
                 board.CheckPawnPromotion(action.piece);
+
+                // ✅ After AI moves, apply tile effects (for tiles like burning/frozen)
+                board.ApplyTileEffectsToAllPieces();
             }
         }
     }
