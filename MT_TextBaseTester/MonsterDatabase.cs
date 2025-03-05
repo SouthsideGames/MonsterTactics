@@ -6,6 +6,8 @@ namespace ChessMonsterTactics
 {
     public static class MonsterDatabase
     {
+        private static readonly Random Random = new();
+
         public static Dictionary<string, int> AbilityCosts = new Dictionary<string, int>
         {
             { "Shock Pulse", 2 },
@@ -119,5 +121,81 @@ namespace ChessMonsterTactics
                 }
             }
         };
+
+         /// <summary>
+        /// Generates a balanced starter team with exactly 8 pawns, 2 knights, 2 bishops, 2 rooks, 1 queen, and 1 king, all from the specified pack.
+        /// </summary>
+        public static List<Piece> GenerateBalancedStarterTeam(string team, string pack)
+        {
+            List<Piece> teamPieces = new();
+            Dictionary<string, int> pieceCount = new()
+            {
+                { "Pawn", 0 },
+                { "Knight", 0 },
+                { "Bishop", 0 },
+                { "Rook", 0 },
+                { "Queen", 0 },
+                { "King", 0 }
+            };
+
+            // Standard chess piece counts
+            Dictionary<string, int> maxPieces = new()
+            {
+                { "Pawn", 8 },
+                { "Knight", 2 },
+                { "Bishop", 2 },
+                { "Rook", 2 },
+                { "Queen", 1 },
+                { "King", 1 }
+            };
+
+            // Pieces in order so king/queen get assigned first
+            string[] orderedTypes = { "King", "Queen", "Rook", "Bishop", "Knight", "Pawn" };
+
+            foreach (var type in orderedTypes)
+            {
+                var eligiblePieces = PieceTemplates.Values
+                    .Where(p => p.Type.Equals(type, StringComparison.OrdinalIgnoreCase) && p.Pack == pack)
+                    .ToList();
+
+                if (eligiblePieces.Count == 0)
+                {
+                    Console.WriteLine($"⚠️ Warning: No {type}s found for {pack} pack!");
+                    continue;
+                }
+
+                int piecesToAdd = maxPieces[type];
+
+                for (int i = 0; i < piecesToAdd; i++)
+                {
+                    var selectedPiece = eligiblePieces[Random.Next(eligiblePieces.Count)].Clone();
+                    selectedPiece.Team = team;
+                    selectedPiece.Position = AssignStartingPosition(type, team, i);
+                    teamPieces.Add(selectedPiece);
+                }
+            }
+
+            return teamPieces;
+        }
+
+        /// <summary>
+        /// Assigns the proper starting position for each piece type according to standard chess starting layout.
+        /// </summary>
+        private static string AssignStartingPosition(string type, string team, int count)
+        {
+            string rank = team == "Player" ? "1" : "8";
+            string pawnRank = team == "Player" ? "2" : "7";
+
+            return type switch
+            {
+                "Pawn" => $"{(char)('A' + count)}{pawnRank}",
+                "Rook" => count == 0 ? $"A{rank}" : $"H{rank}",
+                "Knight" => count == 0 ? $"B{rank}" : $"G{rank}",
+                "Bishop" => count == 0 ? $"C{rank}" : $"F{rank}",
+                "Queen" => $"D{rank}",
+                "King" => $"E{rank}",
+                _ => "A1"
+            };
+        }
     }
 }

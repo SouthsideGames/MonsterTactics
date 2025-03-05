@@ -95,12 +95,16 @@ namespace ChessMonsterTactics
 
         public string GetRandomSafeTile()
         {
-            var emptyTiles = _board.Renderer.GetAllEmptyTiles();
+            var emptyTiles = GenerateAllBoardTiles()
+            .Where(tile => !_board.Pieces.Any(p => p.Position == tile))
+            .ToList();
+
             if (emptyTiles.Count > 0)
             {
                 Random rand = new Random();
                 return emptyTiles[rand.Next(emptyTiles.Count)];
             }
+            
             return "A1";  // Fallback if all tiles are full (shouldn't happen).
         }
 
@@ -117,6 +121,20 @@ namespace ChessMonsterTactics
                 TileEffects.Remove(position);
                 _board.LogTurn($"Tile {position} is no longer affected.");
             }
+        }
+
+        private List<string> GenerateAllBoardTiles()
+        {
+            List<string> allTiles = new();
+            string files = "ABCDEFGH";
+            for (int rank = 1; rank <= 8; rank++)
+            {
+                foreach (char file in files)
+                {
+                    allTiles.Add($"{file}{rank}");
+                }
+            }
+            return allTiles;
         }
     }
 }

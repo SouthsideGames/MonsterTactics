@@ -8,6 +8,7 @@ namespace ChessMonsterTactics
     {
         public List<Piece> Pieces = new List<Piece>();
         public List<string> TurnHistory { get; private set; } = new();
+        private static readonly Random Random = new Random();
 
         // New managers
         public TileEffectManager TileEffects { get; }
@@ -192,5 +193,113 @@ namespace ChessMonsterTactics
                 TurnHistory = new List<string>(TurnHistory)
             };
         }
+
+        public void ShowDetailedEndOfGameReport(string winner)
+        {
+            Console.WriteLine("\n=== Detailed End-of-Game Report ===");
+
+            Console.WriteLine($"\nWinner: {winner}");
+            Console.WriteLine($"Total Turns: {TurnHistory.Count}");
+
+            Console.WriteLine("\nPiece Performance:");
+            foreach (var piece in Pieces)
+            {
+                string status = piece.Health > 0 ? "Survived" : "Eliminated";
+                Console.WriteLine($"- {piece.Team} {piece.Id}: {piece.TotalKills} Kills, {piece.TotalDamageDealt} Damage Dealt ({status})");
+            }
+
+            Console.WriteLine("\nAbilities Used:");
+            var abilityUsage = TurnHistory
+                .Where(entry => entry.Contains("used"))
+                .GroupBy(entry => entry.Split(' ')[1] + " " + entry.Split(' ')[2])
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            foreach (var ability in abilityUsage)
+            {
+                Console.WriteLine($"- {ability.Key} used abilities {ability.Value} times");
+            }
+
+            Console.WriteLine("\nEvolution Log:");
+            var evolutionLog = TurnHistory.Where(entry => entry.Contains("evolved into")).ToList();
+            if (evolutionLog.Count > 0)
+            {
+                foreach (var log in evolutionLog)
+                {
+                    Console.WriteLine($"- {log}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("No evolutions occurred.");
+            }
+
+            Console.WriteLine("\nComplete Turn History:");
+            for (int i = 0; i < TurnHistory.Count; i++)
+            {
+                Console.WriteLine($"{i + 1}. {TurnHistory[i]}");
+            }
+
+            Console.WriteLine("==================================");
+        }
+
+        public void CheckPawnPromotion(Piece piece)
+        {
+            if (piece.Type != "Pawn") return;
+
+            string promotionRank = piece.Team == "Player" ? "8" : "1";
+            if (!piece.Position.EndsWith(promotionRank)) return;
+
+            string promotedType = piece.Team == "Player" ? AskPlayerForPromotionChoice() : "Queen";
+
+            PromotePawn(piece, promotedType);
+        }
+
+        private string AskPlayerForPromotionChoice()
+        {
+            Console.WriteLine("Your pawn has reached the promotion rank! Choose a piece to promote into:");
+            Console.WriteLine("1 - Queen");
+            Console.WriteLine("2 - Rook");
+            Console.WriteLine("3 - Bishop");
+            Console.WriteLine("4 - Knight");
+
+            string choice = Console.ReadLine()?.Trim();
+            return choice switch
+            {
+                "1" => "Queen",
+                "2" => "Rook",
+                "3" => "Bishop",
+                "4" => "Knight",
+                _ => "Queen"
+            };
+        }
+
+        private void PromotePawn(Piece pawn, string newType)
+        {
+            var pack = pawn.Pack;  // Retain pack for synergy
+            var eligiblePieces = MonsterDatabase.PieceTemplates.Values
+                .Where(p => p.Type == newType && p.Pack == pack)
+                .ToList();
+
+            if (eligiblePieces.Count == 0)
+            {
+                Console.WriteLine($"❌ No {newType} found in {pack}! Promoting to default Queen.");
+                newType = "Queen";
+                eligiblePieces = MonsterDatabase.PieceTemplates.Values
+                    .Where(p => p.Type == "Queen" && p.Pack == pack)
+                    .ToList();
+            }
+
+            var promotedPiece = eligiblePieces[Random.Next(eligiblePieces.Count)].Clone();
+            promotedPiece.Team = pawn.Team;
+            promotedPiece.Position = pawn.Position;
+
+            Pieces.Remove(pawn);
+            Pieces.Add(promotedPiece);
+
+            LogTurn($"{pawn.Team} Pawn promoted to {promotedPiece.Type} ({promotedPiece.Id})!");
+        }
+
+                
+
     }
 }

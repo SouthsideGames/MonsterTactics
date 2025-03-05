@@ -1,11 +1,13 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace ChessMonsterTactics
 {
     public class GameManager
     {
-        private int _difficulty;
+        private int difficulty;  // Easy, Medium, Hard
+        private static readonly Random random = new();
 
         public void SetupGame()
         {
@@ -22,7 +24,8 @@ namespace ChessMonsterTactics
 
             string choice = Console.ReadLine()?.Trim();
 
-            if (choice?.ToLower() == "quit") Environment.Exit(0);
+            if (choice?.ToLower() == "quit")
+                Environment.Exit(0);
 
             if (choice == "3")
             {
@@ -44,6 +47,7 @@ namespace ChessMonsterTactics
 
             bool aiVsAi = choice == "2";
 
+            // Ask for difficulty
             Console.WriteLine("\nSelect Difficulty:");
             Console.WriteLine("1 - Easy");
             Console.WriteLine("2 - Medium");
@@ -52,27 +56,36 @@ namespace ChessMonsterTactics
             string difficultyInput = Console.ReadLine()?.Trim();
             if (difficultyInput?.ToLower() == "quit") Environment.Exit(0);
 
-            _difficulty = int.TryParse(difficultyInput, out int parsedDifficulty) && parsedDifficulty >= 1 && parsedDifficulty <= 3
-                ? parsedDifficulty
-                : 1;
+            if (!int.TryParse(difficultyInput, out difficulty) || difficulty < 1 || difficulty > 3)
+            {
+                difficulty = 1;  // Default to Easy
+            }
 
-            Console.WriteLine("Do you want to: (1) Randomly generate pieces or (2) Select your own pieces?");
-            string pieceChoice = Console.ReadLine()?.Trim();
+            // Ask player to select a pack
+            Console.WriteLine("\nSelect Your Pack:");
+            List<string> allPacks = new() { "Starter Pack", "Fire Pack", "Cyber Pack", "Shadow Pack" };
 
-            if (pieceChoice?.ToLower() == "quit") Environment.Exit(0);
+            for (int i = 0; i < allPacks.Count; i++)
+            {
+                Console.WriteLine($"{i + 1} - {allPacks[i]}");
+            }
 
-            bool randomGeneration = pieceChoice == "1";
+            string packChoice = Console.ReadLine()?.Trim();
+            if (packChoice?.ToLower() == "quit") Environment.Exit(0);
+
+            int packIndex = int.TryParse(packChoice, out int result) ? result - 1 : 0;
+            string playerPack = allPacks[Math.Clamp(packIndex, 0, allPacks.Count - 1)];
+
+            // Player team from selected pack
+            var playerTeam = MonsterDatabase.GenerateBalancedStarterTeam("Player", playerPack);
+
+            // AI team uses a **random pack**
+            string aiPack = allPacks[random.Next(allPacks.Count)];
+            var aiTeam = MonsterDatabase.GenerateBalancedStarterTeam("AI", aiPack);
 
             Board board = new Board();
-
-            if (randomGeneration)
-            {
-                board.RandomlyGeneratePieces();
-            }
-            else
-            {
-                board.PlayerCreateTeam();
-            }
+            board.Pieces.AddRange(playerTeam);
+            board.Pieces.AddRange(aiTeam);
 
             board.ShowTeamPreview();
 
@@ -94,7 +107,6 @@ namespace ChessMonsterTactics
             Console.WriteLine("- To move a piece, type its name and location like this: 'Pawn at A2'");
             Console.WriteLine("- After selecting a piece, enter where you want to move it: 'A3'");
             Console.WriteLine("- Abilities can be used instead of moving.");
-            Console.WriteLine("- Type 'boardstate' during your turn to view the full board and tile effects.");
             Console.WriteLine("- Synergies trigger bonuses when you have 3 or more pieces from the same pack.");
             Console.WriteLine("============================================\n");
         }
@@ -157,14 +169,14 @@ namespace ChessMonsterTactics
 
             while (true)
             {
-                ai1.TakeTurn(board, "Player", _difficulty);
+                ai1.TakeTurn(board, "Player", difficulty);
                 if (CheckEndGame(board, out winner)) break;
 
-                ai2.TakeTurn(board, "AI", _difficulty);
+                ai2.TakeTurn(board, "AI", difficulty);
                 if (CheckEndGame(board, out winner)) break;
             }
 
-            board.SummaryManager.ShowMatchSummary(winner);
+            ShowMatchSummary(board, winner);
         }
 
         void RunPlayerVsAi(Board board)
@@ -178,11 +190,11 @@ namespace ChessMonsterTactics
                 player.TakeTurn(board);
                 if (CheckEndGame(board, out winner)) break;
 
-                ai.TakeTurn(board, "AI", _difficulty);
+                ai.TakeTurn(board, "AI", difficulty);
                 if (CheckEndGame(board, out winner)) break;
             }
 
-            board.SummaryManager.ShowMatchSummary(winner);
+            ShowMatchSummary(board, winner);
         }
 
         bool CheckEndGame(Board board, out string winner)
@@ -190,10 +202,31 @@ namespace ChessMonsterTactics
             if (board.CheckWinCondition(out winner))
             {
                 LearningManager.RecordMatchResult(winner, board.Pieces);
-                PersistentDataManager.UpdateHallOfFame(board.Pieces);
                 return true;
             }
             return false;
+        }
+
+        private void ShowMatchSummary(Board board, string winner)
+        {
+            Console.WriteLine("\n=== Match Summary ===");
+            Console.WriteLine($"Winner: {winner}");
+
+            int playerPieces = board.Pieces.Count(p => p.Team == "Player" && p.Health > 0);
+            int aiPieces = board.Pieces.Count(p => p.Team == "AI" && p.Health > 0);
+            int totalPlayerDamage = board.Pieces.Where(p => p.Team == "Player").Sum(p => p.TotalDamageDealt);
+            int totalAIDamage = board.Pieces.Where(p => p.Team == "AI").Sum(p => p.TotalDamageDealt);
+
+            Console.WriteLine($"Total Player Damage Dealt: {totalPlayerDamage}");
+            Console.WriteLine($"Total AI Damage Dealt: {totalAIDamage}");
+
+            var mvp = board.Pieces.OrderByDescending(p => p.TotalDamageDealt).FirstOrDefault();
+            if (mvp != null)
+            {
+                Console.WriteLine($"Most Valuable Piece: {mvp.Team} {mvp.Id} - {mvp.TotalDamageDealt} Damage - {mvp.TotalKills} Kills");
+            }
+
+            board.ShowDetailedEndOfGameReport(winner);
         }
     }
 }
