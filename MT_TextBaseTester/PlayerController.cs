@@ -57,6 +57,9 @@ namespace ChessMonsterTactics
 
                     board.LogTurn($"{piece.Team} {piece.Id} moved from {piece.Position} to {newPosition}");
                     board.MovePiece(piece, newPosition);
+
+                    board.CheckPawnPromotion(piece);    
+                    
                     break;
                 }
                 else if (action == "2")

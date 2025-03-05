@@ -299,6 +299,11 @@ namespace ChessMonsterTactics
             LogTurn($"{pawn.Team} Pawn promoted to {promotedPiece.Type} ({promotedPiece.Id})!");
         }
 
+        public void ApplyTileEffectsToAllPieces()
+        {
+            TileEffects.ApplyEffectsToAllPieces(this);
+        }
+
                 
 
     }

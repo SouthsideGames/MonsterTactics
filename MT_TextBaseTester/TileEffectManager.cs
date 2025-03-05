@@ -136,5 +136,17 @@ namespace ChessMonsterTactics
             }
             return allTiles;
         }
+
+       public void ApplyEffectsToAllPieces(Board board)
+        {
+            foreach (var piece in board.Pieces.Where(p => p.Health > 0))
+            {
+                if (TileEffects.TryGetValue(piece.Position, out string effect))
+                {
+                    ApplyTileEffect(piece, effect);  // Now we have the effect!
+                }
+            }
+        }
+
     }
 }

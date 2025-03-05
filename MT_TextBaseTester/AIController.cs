@@ -216,6 +216,8 @@ namespace ChessMonsterTactics
             {
                 board.LogTurn($"{action.piece.Team} {action.piece.Id} moved from {action.piece.Position} to {action.move}");
                 board.MovePiece(action.piece, action.move);
+
+                board.CheckPawnPromotion(action.piece);
             }
         }
     }
