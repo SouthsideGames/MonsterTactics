@@ -24,6 +24,32 @@ namespace ChessMonsterTactics
         public bool UltimateUnlocked { get; set; } = false;
         public int UltimateCharge { get; set; } = 0;
 
+        // ✅ Added constructor to match MonsterDatabase expectations
+        public Piece(string id, string type, string pack, int health, int attack, int defense, int speed, string ability, string passive)
+        {
+            Id = id;
+            Type = type;
+            Pack = pack;
+            Health = health;
+            Attack = attack;
+            Defense = defense;
+            Speed = speed;
+            Ability = ability;
+            Passive = passive;
+
+            Position = "A1";  // Starting position placeholder
+            Energy = 10;
+            TotalDamageDealt = 0;
+            TotalKills = 0;
+            Level = 1;
+            Experience = 0;
+            EnergyCostModifier = 0;
+            UltimateUnlocked = false;
+            UltimateCharge = 0;
+        }
+
+        // Default parameterless constructor (for cloning or if needed elsewhere)
+        public Piece() { }
 
         public Piece Clone()
         {
@@ -51,6 +77,4 @@ namespace ChessMonsterTactics
             };
         }
     }
-
-    
 }

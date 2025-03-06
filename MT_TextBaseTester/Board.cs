@@ -38,7 +38,20 @@ namespace ChessMonsterTactics
 
         public void PlayerCreateTeam()
         {
-            // Manual team creation logic can be placed here if needed.
+            Pieces.Clear();
+            Console.WriteLine("\n=== Team Creation ===");
+            Console.WriteLine("Create your custom team by selecting pieces from Fire, Cyber, and Shadow packs.");
+            Console.WriteLine("You need: 8 Pawns, 2 Knights, 2 Bishops, 2 Rooks, 1 Queen, 1 King.");
+
+            AddPiecesToTeam("Pawn", 8);
+            AddPiecesToTeam("Knight", 2);
+            AddPiecesToTeam("Bishop", 2);
+            AddPiecesToTeam("Rook", 2);
+            AddPiecesToTeam("Queen", 1);
+            AddPiecesToTeam("King", 1);
+
+            Console.WriteLine("\nYour custom team has been created!\n");
+            DisplayBoard();
         }
 
         public void DisplayBoard()
@@ -356,5 +369,75 @@ namespace ChessMonsterTactics
             return TileEffects.TileEffects.TryGetValue(position, out string effect) && effect == "Shielded";
         }
 
+        private void AddPiecesToTeam(string pieceType, int requiredCount)
+        {
+            List<string> availablePacks = new() { "Fire Pack", "Cyber Pack", "Shadow Pack" };
+
+            for (int i = 0; i < requiredCount; i++)
+            {
+                Console.WriteLine($"\nSelect {pieceType} {i + 1}/{requiredCount}");
+                Console.WriteLine("Available Packs:");
+
+                for (int j = 0; j < availablePacks.Count; j++)
+                {
+                    Console.WriteLine($"{j + 1} - {availablePacks[j]}");
+                }
+
+                string packChoice = Console.ReadLine()?.Trim();
+                if (packChoice?.ToLower() == "quit") Environment.Exit(0);
+
+                int packIndex = int.TryParse(packChoice, out int result) ? result - 1 : 0;
+                string selectedPack = availablePacks[Math.Clamp(packIndex, 0, availablePacks.Count - 1)];
+
+                var template = MonsterDatabase.GetPieceTemplateByTypeAndPack(pieceType, selectedPack);
+                if (template == null)
+                {
+                    Console.WriteLine($"❌ No {pieceType} available in {selectedPack}. Please select again.");
+                    i--;  // Try again for this slot
+                    continue;
+                }
+
+                var newPiece = template.Clone();
+                newPiece.Id = $"{newPiece.Id}{i + 1}";
+                newPiece.Team = "Player";
+                newPiece.Position = GetStartingPosition(pieceType, i + 1, "Player");
+                Pieces.Add(newPiece);
+
+                Console.WriteLine($"✅ Added {newPiece.Id} from {newPiece.Pack}.");
+            }
+        }
+
+        private string GetStartingPosition(string pieceType, int count, string team)
+        {
+            // Define starting positions based on the team and piece type
+            if (team == "Player")
+            {
+                return pieceType switch
+                {
+                    "Pawn" => $"A{count}",
+                    "Knight" => count == 1 ? "B1" : "G1",
+                    "Bishop" => count == 1 ? "C1" : "F1",
+                    "Rook" => count == 1 ? "A1" : "H1",
+                    "Queen" => "D1",
+                    "King" => "E1",
+                    _ => "A1"
+                };
+            }
+            else
+            {
+                return pieceType switch
+                {
+                    "Pawn" => $"A{count}",
+                    "Knight" => count == 1 ? "B8" : "G8",
+                    "Bishop" => count == 1 ? "C8" : "F8",
+                    "Rook" => count == 1 ? "A8" : "H8",
+                    "Queen" => "D8",
+                    "King" => "E8",
+                    _ => "A8"
+                };
+            }
+        }
     }
+
+
 }

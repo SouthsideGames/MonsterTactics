@@ -46,11 +46,9 @@ namespace ChessMonsterTactics
                 SearchForPiece();
                 return;
             }
-            
 
             bool aiVsAi = choice == "2";
 
-            // Ask for difficulty
             Console.WriteLine("\nSelect Difficulty:");
             Console.WriteLine("1 - Easy");
             Console.WriteLine("2 - Medium");
@@ -64,31 +62,23 @@ namespace ChessMonsterTactics
                 difficulty = 1;  // Default to Easy
             }
 
-            // Ask player to select a pack
-            Console.WriteLine("\nSelect Your Pack:");
-            List<string> allPacks = new() { "Starter Pack", "Fire Pack", "Cyber Pack", "Shadow Pack" };
-
-            for (int i = 0; i < allPacks.Count; i++)
-            {
-                Console.WriteLine($"{i + 1} - {allPacks[i]}");
-            }
-
-            string packChoice = Console.ReadLine()?.Trim();
-            if (packChoice?.ToLower() == "quit") Environment.Exit(0);
-
-            int packIndex = int.TryParse(packChoice, out int result) ? result - 1 : 0;
-            string playerPack = allPacks[Math.Clamp(packIndex, 0, allPacks.Count - 1)];
-
-            // Player team from selected pack
-            var playerTeam = MonsterDatabase.GenerateBalancedStarterTeam("Player", playerPack);
-
-            // AI team uses a **random pack**
-            string aiPack = allPacks[random.Next(allPacks.Count)];
-            var aiTeam = MonsterDatabase.GenerateBalancedStarterTeam("AI", aiPack);
-
             Board board = new Board();
-            board.Pieces.AddRange(playerTeam);
-            board.Pieces.AddRange(aiTeam);
+
+            if (aiVsAi)
+            {
+                // AI vs AI - Both sides get randomly generated teams
+                board.Pieces.AddRange(MonsterDatabase.GenerateBalancedStarterTeam("Player", GetRandomPack()));
+                board.Pieces.AddRange(MonsterDatabase.GenerateBalancedStarterTeam("AI", GetRandomPack()));
+            }
+            else
+            {
+                // Player creates team manually
+                board.Pieces.AddRange(TeamManager.PlayerCreateTeam("Player"));
+                board.Pieces.AddRange(MonsterDatabase.GenerateBalancedStarterTeam("AI", GetRandomPack()));
+
+                Console.WriteLine("Enable Debug Mode? (y/n)");
+                debugMode = Console.ReadLine()?.Trim().ToLower() == "y";
+            }
 
             board.ShowTeamPreview();
 
@@ -100,31 +90,22 @@ namespace ChessMonsterTactics
             {
                 RunPlayerVsAi(board);
             }
-
-            if (!aiVsAi)
-            {
-                Console.WriteLine("Enable Debug Mode? (y/n)");
-                string debugInput = Console.ReadLine()?.Trim().ToLower();
-
-                debugMode = (debugInput == "y");
-            }
         }
 
         void ShowHowToPlay()
         {
             Console.WriteLine("\n==== How to Play Chess Monster Tactics ====");
-            Console.WriteLine("- The game follows chess-like movement, but with health and special abilities.");
+            Console.WriteLine("- Chess movement, but with health and abilities.");
             Console.WriteLine("- Type 'quit' anytime to exit.");
-            Console.WriteLine("- To move a piece, type its name and location like this: 'Pawn at A2'");
-            Console.WriteLine("- After selecting a piece, enter where you want to move it: 'A3'");
-            Console.WriteLine("- Abilities can be used instead of moving.");
-            Console.WriteLine("- Synergies trigger bonuses when you have 3 or more pieces from the same pack.");
+            Console.WriteLine("- Move example: 'Pawn at A2 to A3'.");
+            Console.WriteLine("- Use abilities or attack nearby enemies.");
+            Console.WriteLine("- Debug commands (if enabled): 'scan', 'rewind'.");
             Console.WriteLine("============================================\n");
         }
 
         void SearchForPiece()
         {
-            Console.WriteLine("\nEnter piece name (e.g., SparkPawn1) or type (e.g., Knight) to search:");
+            Console.WriteLine("\nEnter piece name or type (e.g., Knight):");
             string searchQuery = Console.ReadLine()?.Trim();
 
             if (searchQuery?.ToLower() == "quit") Environment.Exit(0);
@@ -141,7 +122,6 @@ namespace ChessMonsterTactics
                 return;
             }
 
-            Console.WriteLine($"\nFound {matchingPieces.Count} matching piece(s):");
             foreach (var piece in matchingPieces)
             {
                 ShowPieceDetails(piece);
@@ -150,19 +130,14 @@ namespace ChessMonsterTactics
 
         void ShowPieceDetails(Piece piece)
         {
-            Console.WriteLine($"\n=== Details for {piece.Id} ===");
-            Console.WriteLine($"Type: {piece.Type}");
-            Console.WriteLine($"Health: {piece.Health}");
-            Console.WriteLine($"Attack: {piece.Attack}");
-            Console.WriteLine($"Defense: {piece.Defense}");
-            Console.WriteLine($"Speed: {piece.Speed}");
-            Console.WriteLine($"Special Ability: {piece.Ability}");
-            Console.WriteLine($"Passive Ability: {piece.Passive}");
+            Console.WriteLine($"\n=== {piece.Id} ({piece.Type}) ===");
             Console.WriteLine($"Pack: {piece.Pack}");
+            Console.WriteLine($"HP: {piece.Health}, ATK: {piece.Attack}, DEF: {piece.Defense}, SPD: {piece.Speed}");
+            Console.WriteLine($"Ability: {piece.Ability}, Passive: {piece.Passive}");
 
             if (MonsterDatabase.EvolutionChains.TryGetValue(piece.Id, out var evolutions))
             {
-                Console.WriteLine("Evolution Path:");
+                Console.WriteLine("Evolves into:");
                 foreach (var evolution in evolutions)
                 {
                     Console.WriteLine($"- Level {evolution.Level}: {evolution.EvolvedForm}");
@@ -175,6 +150,7 @@ namespace ChessMonsterTactics
         void RunAiVsAi(Board board)
         {
             string winner = "";
+
             AIController ai1 = new AIController();
             AIController ai2 = new AIController();
 
@@ -193,6 +169,7 @@ namespace ChessMonsterTactics
         void RunPlayerVsAi(Board board)
         {
             string winner = "";
+
             PlayerController player = new PlayerController();
             AIController ai = new AIController();
 
@@ -200,13 +177,13 @@ namespace ChessMonsterTactics
             {
                 if (debugMode)
                 {
-                    Console.WriteLine("Enter 'rewind' to roll back a turn, 'scan' to view the board, or press Enter to begin your turn.");
+                    Console.WriteLine("Enter 'scan', 'rewind', or press Enter to continue:");
                     string input = Console.ReadLine()?.Trim();
 
                     if (input == "rewind")
                     {
                         HandleRewindCommand(board);
-                        continue;  // Skip AI turn after rewind.
+                        continue;
                     }
                     else if (input == "scan")
                     {
@@ -216,28 +193,18 @@ namespace ChessMonsterTactics
                 }
 
                 player.TakeTurn(board);
-
-                if (debugMode)
-                {
-                    board.SaveSnapshot(currentTurnNumber++);
-                }
+                if (debugMode) board.SaveSnapshot(currentTurnNumber++);
 
                 if (CheckEndGame(board, out winner)) break;
 
                 ai.TakeTurn(board, "AI", difficulty);
-
-                if (debugMode)
-                {
-                    board.SaveSnapshot(currentTurnNumber++);
-                }
+                if (debugMode) board.SaveSnapshot(currentTurnNumber++);
 
                 if (CheckEndGame(board, out winner)) break;
             }
 
             ShowMatchSummary(board, winner);
         }
-
-
 
         bool CheckEndGame(Board board, out string winner)
         {
@@ -254,124 +221,54 @@ namespace ChessMonsterTactics
             Console.WriteLine("\n=== Match Summary ===");
             Console.WriteLine($"Winner: {winner}");
 
-            int playerPieces = board.Pieces.Count(p => p.Team == "Player" && p.Health > 0);
-            int aiPieces = board.Pieces.Count(p => p.Team == "AI" && p.Health > 0);
-            int totalPlayerDamage = board.Pieces.Where(p => p.Team == "Player").Sum(p => p.TotalDamageDealt);
-            int totalAIDamage = board.Pieces.Where(p => p.Team == "AI").Sum(p => p.TotalDamageDealt);
-
-            Console.WriteLine($"Total Player Damage Dealt: {totalPlayerDamage}");
-            Console.WriteLine($"Total AI Damage Dealt: {totalAIDamage}");
-
-            var mvp = board.Pieces.OrderByDescending(p => p.TotalDamageDealt).FirstOrDefault();
-            if (mvp != null)
-            {
-                Console.WriteLine($"Most Valuable Piece: {mvp.Team} {mvp.Id} - {mvp.TotalDamageDealt} Damage - {mvp.TotalKills} Kills");
-            }
-
             board.ShowDetailedEndOfGameReport(winner);
-        }
-
-        public void HandlePieceInfoCommand(string input, Board board)
-        {
-            if (input.StartsWith("pieceinfo ", StringComparison.OrdinalIgnoreCase))
-            {
-                string pieceId = input.Substring(10).Trim();  // Extract the piece ID after "pieceinfo"
-
-                var piece = board.Pieces.FirstOrDefault(p => p.Id.Equals(pieceId, StringComparison.OrdinalIgnoreCase));
-
-                if (piece != null)
-                {
-                    Console.WriteLine($"\n=== Piece Info: {piece.Id} ===");
-                    Console.WriteLine($"Type: {piece.Type}");
-                    Console.WriteLine($"Health: {piece.Health}");
-                    Console.WriteLine($"Attack: {piece.Attack}");
-                    Console.WriteLine($"Defense: {piece.Defense}");
-                    Console.WriteLine($"Speed: {piece.Speed}");
-                    Console.WriteLine($"Energy: {piece.Energy}");
-                    Console.WriteLine($"Special Ability: {piece.Ability}");
-                    Console.WriteLine($"Passive Ability: {piece.Passive}");
-                    Console.WriteLine($"Position: {piece.Position}");
-                    Console.WriteLine($"Level: {piece.Level}");
-                    Console.WriteLine($"Kills: {piece.TotalKills}");
-                    Console.WriteLine($"Damage Dealt: {piece.TotalDamageDealt}");
-                    Console.WriteLine($"Pack: {piece.Pack}");
-
-                    if (MonsterDatabase.EvolutionChains.TryGetValue(piece.Id, out var evolutions))
-                    {
-                        Console.WriteLine("Evolution Path:");
-                        foreach (var evolution in evolutions)
-                        {
-                            Console.WriteLine($"- Level {evolution.Level}: {evolution.EvolvedForm}");
-                        }
-                    }
-                    Console.WriteLine("======================\n");
-                }
-                else
-                {
-                    Console.WriteLine($"Piece '{pieceId}' not found on the board.");
-                }
-            }
         }
 
         public void PerformBattlefieldScan(Board board)
         {
             Console.WriteLine("\n=== Battlefield Scan ===");
-
             foreach (var piece in board.Pieces.OrderBy(p => p.Team).ThenBy(p => p.Type))
             {
-                string status = GetPieceStatus(board, piece);
-                Console.WriteLine($"{piece.Team} {piece.Id} ({piece.Type}) - HP: {piece.Health}, Energy: {piece.Energy}, Position: {piece.Position} {status}");
+                string status = piece.Health > 0 ? "Active" : "Eliminated";
+                Console.WriteLine($"{piece.Team} {piece.Id} ({piece.Type}) - {piece.Position} - HP: {piece.Health}, Energy: {piece.Energy}, Status: {status}");
             }
-
-            Console.WriteLine("==================================\n");
-        }
-
-        private string GetPieceStatus(Board board, Piece piece)
-        {
-            List<string> statuses = new List<string>();
-
-            if (board.TileEffects?.TileEffects.TryGetValue(piece.Position, out string tileEffect) == true)
-            {
-                statuses.Add($"[{tileEffect}]");
-            }
-
-            if (piece.Health <= 0)
-            {
-                statuses.Add("(Eliminated)");
-            }
-
-            return statuses.Count > 0 ? string.Join(" ", statuses) : "";
+            Console.WriteLine("==================================");
         }
 
         public void HandleRewindCommand(Board board)
         {
-            if (board.Snapshots.Count == 0)
+            if (!board.Snapshots.Any())
             {
-                Console.WriteLine("No snapshots available to rewind.");
+                Console.WriteLine("No turns to rewind to.");
                 return;
             }
 
-            Console.WriteLine("\nAvailable Turns to Rewind To:");
+            Console.WriteLine("Available turns:");
             foreach (var snapshot in board.Snapshots)
             {
                 Console.WriteLine($"- Turn {snapshot.TurnNumber}");
             }
 
-            Console.Write("\nEnter turn number to rewind to: ");
+            Console.Write("Rewind to turn: ");
             if (int.TryParse(Console.ReadLine(), out int turnNumber))
             {
                 var snapshot = board.Snapshots.FirstOrDefault(s => s.TurnNumber == turnNumber);
                 if (snapshot != null)
                 {
                     board.RestoreSnapshot(snapshot);
-                    Console.WriteLine($"✅ Rewound to Turn {turnNumber}.");
+                    Console.WriteLine($"Rewound to Turn {turnNumber}");
                 }
                 else
                 {
-                    Console.WriteLine("❌ Invalid turn number.");
+                    Console.WriteLine("Invalid turn.");
                 }
             }
         }
 
+        private string GetRandomPack()
+        {
+            string[] packs = { "Fire Pack", "Cyber Pack", "Shadow Pack" };
+            return packs[random.Next(packs.Length)];
+        }
     }
 }

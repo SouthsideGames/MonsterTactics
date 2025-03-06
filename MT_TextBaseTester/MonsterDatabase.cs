@@ -42,16 +42,32 @@ namespace ChessMonsterTactics
             { "System Reboot", "Heals 5 HP after every kill." }
         };
 
-        public static Dictionary<string, Piece> PieceTemplates = new Dictionary<string, Piece>
+        public static Dictionary<string, Piece> PieceTemplates = new()
         {
-            { "FireKnight1", new Piece { Id = "FireKnight1", Type = "Knight", Pack = "Fire Pack", Health = 35, Attack = 9, Defense = 4, Speed = 6, Ability = "Fire Leap", Passive = "Blazing Stride", Ultimate = "Sky Strike" } },
-            { "AquaBishop1", new Piece { Id = "AquaBishop1", Type = "Bishop", Pack = "Water Pack", Health = 30, Attack = 7, Defense = 3, Speed = 5, Ability = "Healing Mist", Passive = "Water Ward", Ultimate = "Blessing of the Stars" } },
-            { "EarthRook1", new Piece { Id = "EarthRook1", Type = "Rook", Pack = "Earth Pack", Health = 40, Attack = 8, Defense = 5, Speed = 4, Ability = "Stonewall", Passive = "Immovable Object", Ultimate = "Fortress Mode" } },
-            { "ShadowPawn1", new Piece { Id = "ShadowPawn1", Type = "Pawn", Pack = "Shadow Pack", Health = 25, Attack = 6, Defense = 2, Speed = 5, Ability = "Dark Strike", Passive = "Shadow Step", Ultimate = "Swarm Assault" } },
-            { "OverclockKnight1", new Piece { Id = "OverclockKnight1", Type = "Knight", Pack = "Cyber Pack", Health = 40, Attack = 17, Defense = 4, Speed = 5, Ability = "Blitz Protocol", Passive = "System Reboot" } },
-            { "PlasmaQueen1", new Piece { Id = "PlasmaQueen1", Type = "Queen", Pack = "Cyber Pack", Health = 45, Attack = 21, Defense = 5, Speed = 4, Ability = "Plasma Barrage", Passive = "Energy Surge" } }
-        };
+            // Fire Pack
+            { "FirePawn1", new Piece("FirePawn1", "Pawn", "Fire Pack", 30, 8, 3, 4, "Flame Jab", "None") },
+            { "FireKnight1", new Piece("FireKnight1", "Knight", "Fire Pack", 55, 14, 5, 6, "Flame Charge", "Blazing Stride") },
+            { "FireBishop1", new Piece("FireBishop1", "Bishop", "Fire Pack", 50, 12, 4, 5, "Lava Surge", "Molten Ward") },
+            { "FireRook1", new Piece("FireRook1", "Rook", "Fire Pack", 65, 16, 6, 4, "Eruption Shield", "Volcanic Defense") },
+            { "FireQueen1", new Piece("FireQueen1", "Queen", "Fire Pack", 60, 18, 5, 5, "Flame Storm", "Inferno Command") },
+            { "FireKing1", new Piece("FireKing1", "King", "Fire Pack", 70, 15, 6, 3, "Ember Command", "Fireguard") },
 
+            // Cyber Pack
+            { "CyberPawn1", new Piece("CyberPawn1", "Pawn", "Cyber Pack", 30, 7, 3, 4, "EMP Blast", "None") },
+            { "CyberKnight1", new Piece("CyberKnight1", "Knight", "Cyber Pack", 55, 13, 5, 6, "Hyper Leap", "Reboot Cycle") },
+            { "CyberBishop1", new Piece("CyberBishop1", "Bishop", "Cyber Pack", 50, 12, 4, 5, "Scan Pulse", "None") },
+            { "CyberRook1", new Piece("CyberRook1", "Rook", "Cyber Pack", 65, 16, 6, 4, "None", "Adaptive Shielding") },
+            { "CyberQueen1", new Piece("CyberQueen1", "Queen", "Cyber Pack", 60, 17, 5, 5, "Electrowave", "Data Surge") },
+            { "CyberKing1", new Piece("CyberKing1", "King", "Cyber Pack", 70, 15, 6, 3, "System Override", "Fortress Protocol") },
+
+            // Shadow Pack
+            { "ShadowPawn1", new Piece("ShadowPawn1", "Pawn", "Shadow Pack", 30, 9, 3, 5, "Dark Strike", "Shadow Step") },
+            { "ShadowKnight1", new Piece("ShadowKnight1", "Knight", "Shadow Pack", 55, 14, 5, 6, "Shadow Strike", "Shadow Step") },
+            { "ShadowBishop1", new Piece("ShadowBishop1", "Bishop", "Shadow Pack", 50, 12, 4, 5, "Void Pulse", "Abyssal Aura") },
+            { "ShadowRook1", new Piece("ShadowRook1", "Rook", "Shadow Pack", 65, 16, 6, 4, "Ethereal Shift", "Shifting Defense") },
+            { "ShadowQueen1", new Piece("ShadowQueen1", "Queen", "Shadow Pack", 60, 18, 5, 5, "Queen’s Curse", "Dark Surge") },
+            { "ShadowKing1", new Piece("ShadowKing1", "King", "Shadow Pack", 70, 15, 6, 3, "King’s Veil", "Abyssal Protection") },
+        };
         private static Random random = new Random();
 
         public static List<Piece> GenerateRandomTeam(string team)
@@ -205,5 +221,10 @@ namespace ChessMonsterTactics
             { "Cyber Pack", AIPersonalityType.Defensive },
             { "Shadow Pack", AIPersonalityType.Sneaky }
         };
+
+        public static Piece GetPieceTemplateByTypeAndPack(string type, string pack)
+        {
+            return PieceTemplates.Values.FirstOrDefault(p => p.Type == type && p.Pack == pack);
+        }
     }
 }

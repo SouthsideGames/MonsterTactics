@@ -7,6 +7,7 @@ namespace ChessMonsterTactics
     public class PieceEvolutionManager
     {
         private readonly Board _board;
+        public static event Action<Piece, string> OnPieceEvolved;
 
         public PieceEvolutionManager(Board board)
         {
@@ -86,6 +87,7 @@ namespace ChessMonsterTactics
                 return;
             }
 
+            // Core stat changes
             piece.Id = evolvedPiece.Id;
             piece.Type = evolvedPiece.Type;
             piece.Health = evolvedPiece.Health;
@@ -98,6 +100,8 @@ namespace ChessMonsterTactics
             piece.Pack = evolvedPiece.Pack;
 
             _board.LogTurn($"{piece.Team} {piece.Id} evolved into {evolvedId}!");
+
+            OnPieceEvolved?.Invoke(piece, evolvedId);   // Trigger optional UI/visual effects
         }
     }
 }
