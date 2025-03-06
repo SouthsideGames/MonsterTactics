@@ -134,6 +134,26 @@ namespace ChessMonsterTactics
                 case "Commanding Presence":
                     BoostAdjacentAllies(piece, 5);
                     break;
+
+                case "Ethereal Link":
+                    ApplyEtherealLink(piece);
+                    break;
+
+                case "Reality Anchor":
+                    ApplyRealityAnchor(piece);
+                    break;
+
+                case "Fire Trail":
+                    ApplyFireTrail(piece);
+                    break;
+
+                case "Molten Core":
+                    ApplyMoltenCore(piece);
+                    break;
+
+                case "Rebel Leader":
+                    ApplyRebelLeader(piece);
+                    break;
             }
         }
 
@@ -437,6 +457,87 @@ namespace ChessMonsterTactics
                 };
             }
         }
+
+        private void ApplyEtherealLink(Piece piece)
+        {
+            var allies = Pieces.Where(p => p.Team == piece.Team && IsAdjacent(piece, p));
+            foreach (var ally in allies)
+            {
+                ally.Defense += 1;
+                LogTurn($"{piece.Team} {piece.Id}'s Ethereal Link grants +1 Defense to {ally.Team} {ally.Id}.");
+            }
+        }
+
+        private void ApplyRealityAnchor(Piece piece)
+        {
+            int arcaneCount = Pieces.Count(p => p.Team == piece.Team && p.Pack == "Arcane Echoes" && p.Health > 0);
+            if (arcaneCount >= 3)
+            {
+                piece.Defense += 5;
+                LogTurn($"{piece.Team} {piece.Id}'s Reality Anchor activates! +5 Defense.");
+            }
+        }
+
+        private void ApplyFireTrail(Piece piece)
+        {
+            TileEffects.SetTileEffect(piece.Position, "Burning");
+            LogTurn($"{piece.Team} {piece.Id}'s Fire Trail leaves {piece.Position} burning!");
+        }
+
+        private void ApplyMoltenCore(Piece piece)
+        {
+            bool nearBurningTile = GetAdjacentTiles(piece.Position).Any(pos =>
+                TileEffects.TileEffects.TryGetValue(pos, out string effect) && effect == "Burning");
+
+            if (nearBurningTile)
+            {
+                piece.Defense += (int)(piece.Defense * 0.10);  // 10% Defense boost
+                LogTurn($"{piece.Team} {piece.Id}'s Molten Core activates near burning tiles! Defense increased.");
+            }
+        }
+
+        private void ApplyRebelLeader(Piece piece)
+        {
+            int rebellionCount = Pieces.Count(p => p.Team == piece.Team && p.Pack == "Blazing Rebellion" && p.Health > 0);
+            if (rebellionCount >= 3)
+            {
+                foreach (var ally in Pieces.Where(p => p.Team == piece.Team))
+                {
+                    ally.Attack += 5;
+                }
+                LogTurn($"{piece.Team} {piece.Id}'s Rebel Leader boosts all allies' Attack by +5!");
+            }
+        }
+
+        private List<string> GetAdjacentTiles(string position)
+        {
+            char file = position[0];
+            int rank = int.Parse(position[1].ToString());
+
+            List<string> adjacent = new()
+            {
+                $"{(char)(file - 1)}{rank}",     // Left
+                $"{(char)(file + 1)}{rank}",     // Right
+                $"{file}{rank - 1}",             // Down
+                $"{file}{rank + 1}",             // Up
+                $"{(char)(file - 1)}{rank - 1}", // Down-left
+                $"{(char)(file + 1)}{rank - 1}", // Down-right
+                $"{(char)(file - 1)}{rank + 1}", // Up-left
+                $"{(char)(file + 1)}{rank + 1}"  // Up-right
+            };
+
+            return adjacent.Where(pos => IsValidTile(pos)).ToList();
+        }
+
+        private bool IsValidTile(string position)
+        {
+            if (position.Length != 2) return false;
+            char file = position[0];
+            int rank = position[1] - '0';
+
+            return file >= 'A' && file <= 'H' && rank >= 1 && rank <= 8;
+        }
+
     }
 
 

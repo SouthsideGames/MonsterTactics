@@ -20,7 +20,10 @@ namespace ChessMonsterTactics
             { "Stonewall", 2 },
             { "Psychic Blast", 5 },
             { "Dark Strike", 2 },
-            { "Arcane Pulse", 4 }
+            { "Arcane Pulse", 4 },
+            { "Rune Dash", 3 },
+            { "Psychic Burst", 5 },
+            { "Blazing Command", 5 }
         };
 
         public static Dictionary<string, string> AbilityDescriptions = new Dictionary<string, string>
@@ -39,7 +42,10 @@ namespace ChessMonsterTactics
             { "Shadow Step", "Allows the piece to reposition once per turn without using energy." },
             { "Energy Surge", "Gains +1 Energy for each enemy hit by Plasma Barrage." },
             { "Cyber Fortress", "Adjacent allies take 20% less damage." },
-            { "System Reboot", "Heals 5 HP after every kill." }
+            { "System Reboot", "Heals 5 HP after every kill." },
+            { "Rune Dash", "Move to a target tile and deal 8 damage to all adjacent enemies after moving." },
+            { "Psychic Burst", "Deal 10 damage to an enemy within 2 tiles." },
+            { "Blazing Command", "Ignite all tiles within a 1-tile radius, making them Burning for 3 turns." }
         };
 
         public static Dictionary<string, Piece> PieceTemplates = new()
@@ -67,6 +73,23 @@ namespace ChessMonsterTactics
             { "ShadowRook1", new Piece("ShadowRook1", "Rook", "Shadow Pack", 65, 16, 6, 4, "Ethereal Shift", "Shifting Defense") },
             { "ShadowQueen1", new Piece("ShadowQueen1", "Queen", "Shadow Pack", 60, 18, 5, 5, "Queen’s Curse", "Dark Surge") },
             { "ShadowKing1", new Piece("ShadowKing1", "King", "Shadow Pack", 70, 15, 6, 3, "King’s Veil", "Abyssal Protection") },
+
+            // Arcane Echoes Pack
+            { "ArcanePawn1", new Piece("ArcanePawn1", "Pawn", "Arcane Echoes", 30, 5, 3, 5, "None", "None") },
+            { "RunebladeKnight1", new Piece("RunebladeKnight1", "Knight", "Arcane Echoes", 55, 12, 5, 8, "Rune Dash", "None") },
+            { "WispsoulBishop1", new Piece("WispsoulBishop1", "Bishop", "Arcane Echoes", 45, 8, 4, 6, "None", "Ethereal Link") },
+            { "ArcanePillarRook1", new Piece("ArcanePillarRook1", "Rook", "Arcane Echoes", 65, 14, 6, 4, "None", "None") },
+            { "ShardmindQueen1", new Piece("ShardmindQueen1", "Queen", "Arcane Echoes", 70, 18, 5, 7, "Psychic Burst", "None") },
+            { "EnigmaKing1", new Piece("EnigmaKing1", "King", "Arcane Echoes", 85, 14, 6, 5, "None", "Reality Anchor") },
+
+            // Blazing Rebellion Pack
+            { "ScorchlingPawn1", new Piece("ScorchlingPawn1", "Pawn", "Blazing Rebellion", 35, 6, 3, 5, "None", "None") },
+            { "InfernoKnight1", new Piece("InfernoKnight1", "Knight", "Blazing Rebellion", 60, 13, 5, 7, "None", "Fire Trail") },
+            { "EmberlightBishop1", new Piece("EmberlightBishop1", "Bishop", "Blazing Rebellion", 50, 9, 4, 6, "None", "None") },
+            { "MagmaRook1", new Piece("MagmaRook1", "Rook", "Blazing Rebellion", 70, 15, 6, 4, "None", "Molten Core") },
+            { "FlameheartQueen1", new Piece("FlameheartQueen1", "Queen", "Blazing Rebellion", 75, 20, 5, 7, "Blazing Command", "None") },
+            { "PyreKing1", new Piece("PyreKing1", "King", "Blazing Rebellion", 90, 14, 6, 5, "None", "Rebel Leader") },
+
         };
         private static Random random = new Random();
 
@@ -119,7 +142,9 @@ namespace ChessMonsterTactics
         {
             { "Fire Pack", "All Fire Pack members gain +5% Attack when 3 or more are on the team." },
             { "Cyber Pack", "All Cyber Pack members gain +2 Defense when 3 or more are on the team." },
-            { "Shadow Pack", "All Shadow Pack members gain +1 Speed when 3 or more are on the team." }
+            { "Shadow Pack", "All Shadow Pack members gain +1 Speed when 3 or more are on the team." },
+            { "Arcane Echoes", "All Arcane Echoes pieces gain +2 Speed and +5% Ability Power when 3 or more are on the board." },
+            { "Blazing Rebellion", "All Blazing Rebellion pieces gain +5 Attack Power and Burning Strike (10% chance to ignite enemies on basic attacks) when 3 or more are on the board." },
         };
 
         public static Dictionary<string, List<(int Level, string EvolvedForm)>> EvolutionChains = new()
@@ -135,7 +160,17 @@ namespace ChessMonsterTactics
                     (5, "IronRook1"),
                     (10, "ObsidianRook1")
                 }
-            }
+            },
+            
+            // Arcane Echoes Evolutions
+            { "ArcanePawn1", new List<(int, string)> { (5, "EchoKnight1"), (10, "EchoChampion1") } },
+            { "RunebladeKnight1", new List<(int, string)> { (5, "MysticBladeKnight1"), (10, "VoidbladeKnight1") } },
+            { "ShardmindQueen1", new List<(int, string)> { (5, "AstralQueen1"), (10, "CosmicQueen1") } },
+
+            // Blazing Rebellion Evolutions
+            { "ScorchlingPawn1", new List<(int, string)> { (5, "FlamebornPawn1"), (10, "InfernalPawn1") } },
+            { "InfernoKnight1", new List<(int, string)> { (5, "HellfireKnight1"), (10, "CataclysmKnight1") } },
+            { "PyreKing1", new List<(int, string)> { (5, "InfernalKing1"), (10, "BlazingEmperor1") } },
         };
 
          /// <summary>

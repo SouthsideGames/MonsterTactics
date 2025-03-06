@@ -117,5 +117,68 @@ namespace ChessMonsterTactics
 
             Console.WriteLine($"{label}: {abilityName} - {description}");
         }   
+
+        public static Dictionary<string, List<(int Level, string EvolvedForm)>> EvolutionChains = new()
+        {
+            // Fire Pawn Evolution
+            { "FirePawn1", new List<(int, string)>
+                {
+                    (5, "BlazePawn1"),
+                    (10, "InfernoPawn1")
+                }
+            },
+            { "FireKnight1", new List<(int, string)>
+                {
+                    (5, "BlazeKnight1"),
+                    (10, "InfernoKnight1")
+                }
+            },
+            { "FireRook1", new List<(int, string)>
+                {
+                    (5, "MagmaRook1"),
+                    (10, "VolcanoRook1")
+                }
+            },
+
+            // Cyber Pack
+            { "CyberPawn1", new List<(int, string)>
+                {
+                    (5, "TechPawn1"),
+                    (10, "NanoPawn1")
+                }
+            },
+            { "CyberKnight1", new List<(int, string)>
+                {
+                    (5, "CircuitKnight1"),
+                    (10, "MechaKnight1")
+                }
+            },
+            { "CyberBishop1", new List<(int, string)>
+                {
+                    (5, "DataBishop1"),
+                    (10, "NeuralBishop1")
+                }
+            },
+
+            // Shadow Pack
+            { "ShadowPawn1", new List<(int, string)>
+                {
+                    (5, "NightPawn1"),
+                    (10, "VoidPawn1")
+                }
+            },
+            { "ShadowKnight1", new List<(int, string)>
+                {
+                    (5, "NightmareKnight1"),
+                    (10, "PhantomKnight1")
+                }
+            },
+            { "ShadowQueen1", new List<(int, string)>
+                {
+                    (5, "AbyssQueen1"),
+                    (10, "VoidQueen1")
+                }
+            }
+        };
     }
 }
