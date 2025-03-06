@@ -22,3 +22,5 @@ Chess Monster Tactics combines the strategic movement of chess with monster batt
 - Fire Pack
 - Cyber Pack
 - Shadow Pack
+- Blazing Rebellion
+- Arcane Echoes
