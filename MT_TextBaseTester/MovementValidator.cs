@@ -6,159 +6,180 @@ namespace ChessMonsterTactics
 {
     public static class MovementValidator
     {
-        private static readonly Dictionary<string, (int, int)> PositionToCoordinates = GeneratePositionMap();
+        private static readonly int BoardSize = 8;
+
+        private static bool IsWithinBounds(int row, int col)
+        {
+            return row >= 0 && row < BoardSize && col >= 0 && col < BoardSize;
+        }
+
+        public static string CoordinatesToPosition(int row, int col)
+        {
+            if (!IsWithinBounds(row, col))
+                throw new ArgumentOutOfRangeException($"Invalid coordinates ({row}, {col}).");
+
+            char file = (char)('A' + col);
+            return $"{file}{row + 1}";
+        }
+
+        public static (int row, int col) PositionToCoordinates(string position)
+        {
+            char file = position[0];
+            int rank = position[1] - '0';
+            int row = rank - 1;
+            int col = file - 'A';
+            return (row, col);
+        }
 
         public static bool IsMoveLegal(Piece piece, string targetPosition, List<Piece> allPieces)
         {
-            var (startRow, startCol) = PositionToCoordinates[piece.Position];
-            var (targetRow, targetCol) = PositionToCoordinates[targetPosition];
-
-            switch (piece.Type)
-            {
-                case "King": return IsKingMoveLegal(startRow, startCol, targetRow, targetCol);
-                case "Queen": return IsStraightOrDiagonalMoveLegal(startRow, startCol, targetRow, targetCol, allPieces);
-                case "Rook": return IsStraightMoveLegal(startRow, startCol, targetRow, targetCol, allPieces);
-                case "Bishop": return IsDiagonalMoveLegal(startRow, startCol, targetRow, targetCol, allPieces);
-                case "Knight": return IsKnightMoveLegal(startRow, startCol, targetRow, targetCol);
-                case "Pawn": return IsPawnMoveLegal(piece, startRow, startCol, targetRow, targetCol, allPieces);
-                default: return false;
-            }
+            return GetLegalMoves(piece, allPieces).Contains(targetPosition);
         }
 
         public static List<string> GetLegalMoves(Piece piece, List<Piece> allPieces)
         {
-            var legalMoves = new List<string>();
+            var moves = new List<string>();
+            (int startRow, int startCol) = PositionToCoordinates(piece.Position);
 
-            foreach (var position in PositionToCoordinates.Keys)
+            switch (piece.Type)
             {
-                if (IsMoveLegal(piece, position, allPieces))
-                {
-                    legalMoves.Add(position);
-                }
+                case "Pawn":
+                    AddPawnMoves(piece, startRow, startCol, moves, allPieces);
+                    break;
+                case "Knight":
+                    AddKnightMoves(piece, startRow, startCol, moves, allPieces);
+                    break;
+                case "Bishop":
+                    AddSlidingMoves(startRow, startCol, moves, allPieces, diagonals: true, straight: false, piece);
+                    break;
+                case "Rook":
+                    AddSlidingMoves(startRow, startCol, moves, allPieces, diagonals: false, straight: true, piece);
+                    break;
+                case "Queen":
+                    AddSlidingMoves(startRow, startCol, moves, allPieces, diagonals: true, straight: true, piece);
+                    break;
+                case "King":
+                    AddKingMoves(startRow, startCol, moves, allPieces, piece);
+                    break;
             }
 
-            return legalMoves;
+            return moves;
         }
 
-        private static bool IsKingMoveLegal(int startRow, int startCol, int targetRow, int targetCol)
+        private static void AddPawnMoves(Piece piece, int row, int col, List<string> moves, List<Piece> allPieces)
         {
-            return Math.Abs(startRow - targetRow) <= 1 && Math.Abs(startCol - targetCol) <= 1;
-        }
+            int direction = piece.Team == "Player" ? 1 : -1;
 
-        private static bool IsKnightMoveLegal(int startRow, int startCol, int targetRow, int targetCol)
-        {
-            int rowDiff = Math.Abs(startRow - targetRow);
-            int colDiff = Math.Abs(startCol - targetCol);
-            return (rowDiff == 2 && colDiff == 1) || (rowDiff == 1 && colDiff == 2);
-        }
-
-        private static bool IsStraightOrDiagonalMoveLegal(int startRow, int startCol, int targetRow, int targetCol, List<Piece> allPieces)
-        {
-            return IsStraightMoveLegal(startRow, startCol, targetRow, targetCol, allPieces) ||
-                   IsDiagonalMoveLegal(startRow, startCol, targetRow, targetCol, allPieces);
-        }
-
-        private static bool IsStraightMoveLegal(int startRow, int startCol, int targetRow, int targetCol, List<Piece> allPieces)
-        {
-            if (startRow == targetRow)
+            // Forward move (only if not blocked)
+            if (IsTileEmpty(row + direction, col, allPieces))
             {
-                int step = startCol < targetCol ? 1 : -1;
-                for (int col = startCol + step; col != targetCol; col += step)
-                {
-                    if (PieceAtPosition(startRow, col, allPieces) != null) return false;
-                }
-                return true;
+                moves.Add(CoordinatesToPosition(row + direction, col));
             }
 
-            if (startCol == targetCol)
-            {
-                int step = startRow < targetRow ? 1 : -1;
-                for (int row = startRow + step; row != targetRow; row += step)
-                {
-                    if (PieceAtPosition(row, startCol, allPieces) != null) return false;
-                }
-                return true;
-            }
-
-            return false;
+            // Diagonal captures (only if enemy exists there)
+            TryAddCaptureMove(row + direction, col - 1, moves, piece, allPieces);
+            TryAddCaptureMove(row + direction, col + 1, moves, piece, allPieces);
         }
 
-        private static bool IsDiagonalMoveLegal(int startRow, int startCol, int targetRow, int targetCol, List<Piece> allPieces)
+        private static void AddKnightMoves(Piece piece, int row, int col, List<string> moves, List<Piece> allPieces)
         {
-            int rowDiff = Math.Abs(startRow - targetRow);
-            int colDiff = Math.Abs(startCol - targetCol);
-            if (rowDiff != colDiff) return false;
+            int[][] offsets = {
+                new[] { 2, 1 }, new[] { 2, -1 },
+                new[] { -2, 1 }, new[] { -2, -1 },
+                new[] { 1, 2 }, new[] { 1, -2 },
+                new[] { -1, 2 }, new[] { -1, -2 }
+            };
 
-            int rowStep = (targetRow > startRow) ? 1 : -1;
-            int colStep = (targetCol > startCol) ? 1 : -1;
-
-            for (int i = 1; i < rowDiff; i++)
+            foreach (var offset in offsets)
             {
-                if (PieceAtPosition(startRow + i * rowStep, startCol + i * colStep, allPieces) != null) return false;
+                TryAddMoveOrCapture(row + offset[0], col + offset[1], moves, piece, allPieces);
             }
-
-            return true;
         }
 
-        private static bool IsPawnMoveLegal(Piece pawn, int startRow, int startCol, int targetRow, int targetCol, List<Piece> allPieces)
+        private static void AddSlidingMoves(int row, int col, List<string> moves, List<Piece> allPieces, bool diagonals, bool straight, Piece piece)
         {
-            int direction = (pawn.Team == "Player") ? 1 : -1;
-            int rowDiff = targetRow - startRow;
-            int colDiff = Math.Abs(startCol - targetCol);
-
-            if (colDiff == 0)  // Forward movement
+            int[][] directions = diagonals
+                ? new[] { new[] { 1, 1 }, new[] { 1, -1 }, new[] { -1, 1 }, new[] { -1, -1 } }
+                : new int[0][];
+            
+            if (straight)
             {
-                if (rowDiff == direction && PieceAtPosition(targetRow, targetCol, allPieces) == null)
-                    return true;
+                directions = directions.Concat(new[] { new[] { 1, 0 }, new[] { -1, 0 }, new[] { 0, 1 }, new[] { 0, -1 } }).ToArray();
+            }
 
-                if ((startRow == 2 && pawn.Team == "Player") || (startRow == 7 && pawn.Team == "AI"))
+            foreach (var dir in directions)
+            {
+                for (int i = 1; i < BoardSize; i++)
                 {
-                    if (rowDiff == 2 * direction &&
-                        PieceAtPosition(startRow + direction, startCol, allPieces) == null &&
-                        PieceAtPosition(targetRow, targetCol, allPieces) == null)
+                    int targetRow = row + dir[0] * i;
+                    int targetCol = col + dir[1] * i;
+
+                    if (!IsWithinBounds(targetRow, targetCol))
+                        break;
+
+                    string pos = CoordinatesToPosition(targetRow, targetCol);
+                    var blockingPiece = allPieces.FirstOrDefault(p => p.Position == pos);
+
+                    if (blockingPiece == null)
                     {
-                        return true;
+                        moves.Add(pos);
+                    }
+                    else
+                    {
+                        if (blockingPiece.Team != piece.Team)
+                        {
+                            moves.Add(pos); // Capture enemy
+                        }
+                        break; // Friendly or enemy piece blocks further movement
                     }
                 }
             }
-            else if (colDiff == 1 && rowDiff == direction)
-            {
-                var targetPiece = PieceAtPosition(targetRow, targetCol, allPieces);
-                if (targetPiece != null && targetPiece.Team != pawn.Team)
-                    return true;
-            }
-
-            return false;
         }
 
-        private static Piece PieceAtPosition(int row, int col, List<Piece> allPieces)
+        private static void AddKingMoves(int row, int col, List<string> moves, List<Piece> allPieces, Piece piece)
         {
-            string position = CoordinatesToPosition(row, col);
-            return allPieces.FirstOrDefault(p => p.Position == position);
-        }
-
-        private static Dictionary<string, (int, int)> GeneratePositionMap()
-        {
-            var map = new Dictionary<string, (int, int)>();
-            string files = "ABCDEFGH";
-
-            for (int row = 1; row <= 8; row++)
+            for (int dr = -1; dr <= 1; dr++)
             {
-                for (int col = 0; col < 8; col++)
+                for (int dc = -1; dc <= 1; dc++)
                 {
-                    string pos = $"{files[col]}{row}";
-                    map[pos] = (row, col + 1);
+                    if (dr == 0 && dc == 0) continue;
+                    TryAddMoveOrCapture(row + dr, col + dc, moves, piece, allPieces);
                 }
             }
-            return map;
         }
 
-        private static string CoordinatesToPosition(int row, int col)
+        private static void TryAddMoveOrCapture(int row, int col, List<string> moves, Piece piece, List<Piece> allPieces)
         {
-            string files = "ABCDEFGH";
-            return $"{files[col - 1]}{row}";
+            if (!IsWithinBounds(row, col)) return;
+
+            string pos = CoordinatesToPosition(row, col);
+            var targetPiece = allPieces.FirstOrDefault(p => p.Position == pos);
+
+            if (targetPiece == null || targetPiece.Team != piece.Team)
+            {
+                moves.Add(pos);
+            }
         }
 
-        
+        private static void TryAddCaptureMove(int row, int col, List<string> moves, Piece piece, List<Piece> allPieces)
+        {
+            if (!IsWithinBounds(row, col)) return;
+
+            string pos = CoordinatesToPosition(row, col);
+            var targetPiece = allPieces.FirstOrDefault(p => p.Position == pos);
+
+            if (targetPiece != null && targetPiece.Team != piece.Team)
+            {
+                moves.Add(pos);
+            }
+        }
+
+        private static bool IsTileEmpty(int row, int col, List<Piece> allPieces)
+        {
+            if (!IsWithinBounds(row, col)) return false;
+
+            string pos = CoordinatesToPosition(row, col);
+            return !allPieces.Any(p => p.Position == pos);
+        }
     }
 }

@@ -25,9 +25,7 @@ namespace ChessMonsterTactics
             Console.WriteLine("Type 'quit' at any time to exit.");
 
             string choice = Console.ReadLine()?.Trim();
-
-            if (choice?.ToLower() == "quit")
-                Environment.Exit(0);
+            if (choice?.ToLower() == "quit") Environment.Exit(0);
 
             if (choice == "3")
             {
@@ -57,141 +55,107 @@ namespace ChessMonsterTactics
             string difficultyInput = Console.ReadLine()?.Trim();
             if (difficultyInput?.ToLower() == "quit") Environment.Exit(0);
 
-            if (!int.TryParse(difficultyInput, out difficulty) || difficulty < 1 || difficulty > 3)
-            {
-                difficulty = 1;  // Default to Easy
-            }
+            difficulty = aiVsAi ? 2 : int.TryParse(difficultyInput, out int result) ? result : 1;
 
-            Board board = new Board();
+            List<string> allPacks = new() { "Fire Pack", "Cyber Pack", "Shadow Pack", "Arcane Echoes", "Blazing Rebellion" };
 
-            if (aiVsAi)
-            {
-                // AI vs AI - Both sides get randomly generated teams
-                board.Pieces.AddRange(MonsterDatabase.GenerateBalancedStarterTeam("Player", GetRandomPack()));
-                board.Pieces.AddRange(MonsterDatabase.GenerateBalancedStarterTeam("AI", GetRandomPack()));
-            }
-            else
-            {
-                // Player creates team manually
-                board.Pieces.AddRange(TeamManager.PlayerCreateTeam("Player"));
-                board.Pieces.AddRange(MonsterDatabase.GenerateBalancedStarterTeam("AI", GetRandomPack()));
+            string playerPack = SelectPack("Player", allPacks);
+            var playerTeam = MonsterDatabase.GenerateBalancedStarterTeam("Player", playerPack);
 
-                Console.WriteLine("Enable Debug Mode? (y/n)");
-                debugMode = Console.ReadLine()?.Trim().ToLower() == "y";
-            }
+            string aiPack = SelectPack(aiVsAi ? "AI 1" : "AI", allPacks);
+            var aiTeam = MonsterDatabase.GenerateBalancedStarterTeam("AI", aiPack);
 
-            board.ShowTeamPreview();
+            Board board = new();
+            board.Pieces.AddRange(playerTeam);
+            board.Pieces.AddRange(aiTeam);
+
+            board.ShowCompleteTeamPreview();
 
             if (aiVsAi)
             {
-                RunAiVsAi(board);
+                RunAiVsAi(board, playerPack, aiPack);
             }
             else
             {
                 RunPlayerVsAi(board);
             }
+
+            if (!aiVsAi)
+            {
+                Console.WriteLine("Enable Debug Mode? (y/n)");
+                debugMode = Console.ReadLine()?.Trim().ToLower() == "y";
+            }
+        }
+
+        private string SelectPack(string playerType, List<string> packs)
+        {
+            Console.WriteLine($"\n{playerType}, select your pack:");
+            for (int i = 0; i < packs.Count; i++)
+            {
+                Console.WriteLine($"{i + 1} - {packs[i]}");
+            }
+            int choice = int.Parse(Console.ReadLine() ?? "1") - 1;
+            return packs[Math.Clamp(choice, 0, packs.Count - 1)];
         }
 
         void ShowHowToPlay()
         {
             Console.WriteLine("\n==== How to Play Chess Monster Tactics ====");
-            Console.WriteLine("- Chess movement, but with health and abilities.");
-            Console.WriteLine("- Type 'quit' anytime to exit.");
-            Console.WriteLine("- Move example: 'Pawn at A2 to A3'.");
-            Console.WriteLine("- Use abilities or attack nearby enemies.");
-            Console.WriteLine("- Debug commands (if enabled): 'scan', 'rewind'.");
-            Console.WriteLine("============================================\n");
+            Console.WriteLine("- Chess-like movement, but with health and abilities.");
+            Console.WriteLine("- Use 'quit' anytime to exit.");
+            Console.WriteLine("- Type 'scan' to view both teams.");
+            Console.WriteLine("- Abilities & synergies give unique bonuses.");
         }
 
         void SearchForPiece()
         {
-            Console.WriteLine("\nEnter piece name or type (e.g., Knight):");
-            string searchQuery = Console.ReadLine()?.Trim();
+            Console.WriteLine("\nEnter piece name or type:");
+            string query = Console.ReadLine()?.Trim();
+            if (query?.ToLower() == "quit") Environment.Exit(0);
 
-            if (searchQuery?.ToLower() == "quit") Environment.Exit(0);
-
-            var matchingPieces = MonsterDatabase.PieceTemplates
-                .Where(kvp => kvp.Key.Equals(searchQuery, StringComparison.OrdinalIgnoreCase) ||
-                              kvp.Value.Type.Equals(searchQuery, StringComparison.OrdinalIgnoreCase))
+            var results = MonsterDatabase.PieceTemplates
+                .Where(kvp => kvp.Key.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                              kvp.Value.Type.Equals(query, StringComparison.OrdinalIgnoreCase))
                 .Select(kvp => kvp.Value)
                 .ToList();
 
-            if (matchingPieces.Count == 0)
-            {
-                Console.WriteLine("No matching pieces found.");
-                return;
-            }
-
-            foreach (var piece in matchingPieces)
-            {
-                ShowPieceDetails(piece);
-            }
+            if (!results.Any()) Console.WriteLine("No matching pieces found.");
+            else results.ForEach(p => ShowPieceDetails(p));
         }
 
         void ShowPieceDetails(Piece piece)
         {
-            Console.WriteLine($"\n=== {piece.Id} ({piece.Type}) ===");
-            Console.WriteLine($"Pack: {piece.Pack}");
-            Console.WriteLine($"HP: {piece.Health}, ATK: {piece.Attack}, DEF: {piece.Defense}, SPD: {piece.Speed}");
-            Console.WriteLine($"Ability: {piece.Ability}, Passive: {piece.Passive}");
-
-            if (MonsterDatabase.EvolutionChains.TryGetValue(piece.Id, out var evolutions))
-            {
-                Console.WriteLine("Evolves into:");
-                foreach (var evolution in evolutions)
-                {
-                    Console.WriteLine($"- Level {evolution.Level}: {evolution.EvolvedForm}");
-                }
-            }
-
-            Console.WriteLine("==================================");
+            Console.WriteLine($"{piece.Id} ({piece.Type}) - Pack: {piece.Pack}, HP: {piece.Health}, ATK: {piece.Attack}");
         }
 
-        void RunAiVsAi(Board board)
+        void RunAiVsAi(Board board, string playerPack, string aiPack)
         {
             string winner = "";
+            AIController ai1 = new();
+            AIController ai2 = new();
 
-            AIController ai1 = new AIController();
-            AIController ai2 = new AIController();
+            var ai1Personality = MonsterDatabase.PackPersonalities[playerPack];
+            var ai2Personality = MonsterDatabase.PackPersonalities[aiPack];
 
             while (true)
             {
-                ai1.TakeTurn(board, "Player", difficulty);
+                ai1.TakeTurn(board, "Player", 2, ai1Personality);
                 if (CheckEndGame(board, out winner)) break;
 
-                ai2.TakeTurn(board, "AI", difficulty);
+                ai2.TakeTurn(board, "AI", 2, ai2Personality);
                 if (CheckEndGame(board, out winner)) break;
             }
-
             ShowMatchSummary(board, winner);
         }
 
         void RunPlayerVsAi(Board board)
         {
             string winner = "";
-
-            PlayerController player = new PlayerController();
-            AIController ai = new AIController();
+            PlayerController player = new();
+            AIController ai = new();
 
             while (true)
             {
-                if (debugMode)
-                {
-                    Console.WriteLine("Enter 'scan', 'rewind', or press Enter to continue:");
-                    string input = Console.ReadLine()?.Trim();
-
-                    if (input == "rewind")
-                    {
-                        HandleRewindCommand(board);
-                        continue;
-                    }
-                    else if (input == "scan")
-                    {
-                        PerformBattlefieldScan(board);
-                        continue;
-                    }
-                }
-
                 player.TakeTurn(board);
                 if (debugMode) board.SaveSnapshot(currentTurnNumber++);
 
@@ -202,73 +166,18 @@ namespace ChessMonsterTactics
 
                 if (CheckEndGame(board, out winner)) break;
             }
-
             ShowMatchSummary(board, winner);
         }
 
         bool CheckEndGame(Board board, out string winner)
         {
-            if (board.CheckWinCondition(out winner))
-            {
-                LearningManager.RecordMatchResult(winner, board.Pieces);
-                return true;
-            }
-            return false;
+            return board.CheckWinCondition(out winner);
         }
 
-        private void ShowMatchSummary(Board board, string winner)
+        void ShowMatchSummary(Board board, string winner)
         {
-            Console.WriteLine("\n=== Match Summary ===");
-            Console.WriteLine($"Winner: {winner}");
-
+            Console.WriteLine($"Winner: {winner}\n");
             board.ShowDetailedEndOfGameReport(winner);
-        }
-
-        public void PerformBattlefieldScan(Board board)
-        {
-            Console.WriteLine("\n=== Battlefield Scan ===");
-            foreach (var piece in board.Pieces.OrderBy(p => p.Team).ThenBy(p => p.Type))
-            {
-                string status = piece.Health > 0 ? "Active" : "Eliminated";
-                Console.WriteLine($"{piece.Team} {piece.Id} ({piece.Type}) - {piece.Position} - HP: {piece.Health}, Energy: {piece.Energy}, Status: {status}");
-            }
-            Console.WriteLine("==================================");
-        }
-
-        public void HandleRewindCommand(Board board)
-        {
-            if (!board.Snapshots.Any())
-            {
-                Console.WriteLine("No turns to rewind to.");
-                return;
-            }
-
-            Console.WriteLine("Available turns:");
-            foreach (var snapshot in board.Snapshots)
-            {
-                Console.WriteLine($"- Turn {snapshot.TurnNumber}");
-            }
-
-            Console.Write("Rewind to turn: ");
-            if (int.TryParse(Console.ReadLine(), out int turnNumber))
-            {
-                var snapshot = board.Snapshots.FirstOrDefault(s => s.TurnNumber == turnNumber);
-                if (snapshot != null)
-                {
-                    board.RestoreSnapshot(snapshot);
-                    Console.WriteLine($"Rewound to Turn {turnNumber}");
-                }
-                else
-                {
-                    Console.WriteLine("Invalid turn.");
-                }
-            }
-        }
-
-        private string GetRandomPack()
-        {
-            string[] packs = { "Fire Pack", "Cyber Pack", "Shadow Pack" };
-            return packs[random.Next(packs.Length)];
         }
     }
 }

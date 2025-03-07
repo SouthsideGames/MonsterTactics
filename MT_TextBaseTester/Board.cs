@@ -6,13 +6,12 @@ namespace ChessMonsterTactics
 {
     public class Board
     {
-        public List<Piece> Pieces = new List<Piece>();
+        public List<Piece> Pieces = new();
         public List<string> TurnHistory { get; private set; } = new();
         public Stack<List<Piece>> BoardHistory = new();
-        public List<BoardSnapshot> Snapshots = new List<BoardSnapshot>();
-        private static readonly Random Random = new Random();
+        public List<BoardSnapshot> Snapshots = new();
+        private static readonly Random Random = new();
 
-        // New managers
         public TileEffectManager TileEffects { get; }
         public PieceEvolutionManager EvolutionManager { get; }
         public SynergyManager SynergyManager { get; }
@@ -28,66 +27,6 @@ namespace ChessMonsterTactics
             AbilityManager = new AbilityManager(this);
             CombatManager = new CombatManager(this);
             SummaryManager = new MatchSummaryManager(this);
-        }
-
-        public void RandomlyGeneratePieces()
-        {
-            Pieces = MonsterDatabase.GenerateRandomTeam("Player");
-            Pieces.AddRange(MonsterDatabase.GenerateRandomTeam("AI"));
-        }
-
-        public void PlayerCreateTeam()
-        {
-            Pieces.Clear();
-            Console.WriteLine("\n=== Team Creation ===");
-            Console.WriteLine("Create your custom team by selecting pieces from Fire, Cyber, and Shadow packs.");
-            Console.WriteLine("You need: 8 Pawns, 2 Knights, 2 Bishops, 2 Rooks, 1 Queen, 1 King.");
-
-            AddPiecesToTeam("Pawn", 8);
-            AddPiecesToTeam("Knight", 2);
-            AddPiecesToTeam("Bishop", 2);
-            AddPiecesToTeam("Rook", 2);
-            AddPiecesToTeam("Queen", 1);
-            AddPiecesToTeam("King", 1);
-
-            Console.WriteLine("\nYour custom team has been created!\n");
-            DisplayBoard();
-        }
-
-        public void DisplayBoard()
-        {
-            Console.WriteLine("\nCurrent Board:");
-            foreach (var piece in Pieces)
-            {
-                Console.WriteLine($"{piece.Team} {piece.Id} ({piece.Type}) at {piece.Position} - HP: {piece.Health} Energy: {piece.Energy} Level: {piece.Level}");
-            }
-            Console.WriteLine();
-
-            foreach (var (position, effect) in TileEffects.TileEffects)
-            {
-                Console.WriteLine($"Tile {position} - {effect}");
-            }
-        }
-
-        public bool CheckWinCondition(out string winner)
-        {
-            bool playerKingAlive = Pieces.Any(p => p.Team == "Player" && p.Type == "King" && p.Health > 0);
-            bool aiKingAlive = Pieces.Any(p => p.Team == "AI" && p.Type == "King" && p.Health > 0);
-
-            if (!playerKingAlive)
-            {
-                winner = "AI Wins!";
-                return true;
-            }
-
-            if (!aiKingAlive)
-            {
-                winner = "Player Wins!";
-                return true;
-            }
-
-            winner = "";
-            return false;
         }
 
         public void LogTurn(string message)
@@ -111,182 +50,16 @@ namespace ChessMonsterTactics
             TileEffects.ApplyOnEntryEffects(piece, newPosition);
         }
 
-        private void TriggerPiecePassive(Piece piece)
-        {
-            switch (piece.Passive)
-            {
-                case "Water Ward":
-                    HealAdjacentAllies(piece, 2);
-                    break;
-
-                case "Rooted Resilience":
-                    if (IsAdjacentToFriendlyPiece(piece, "Pawn"))
-                    {
-                        piece.Defense += 2;
-                        LogTurn($"{piece.Team} {piece.Id} gains +2 Defense from Rooted Resilience!");
-                    }
-                    break;
-
-                case "Blazing Stride":
-                    TileEffects.SetTileEffect(piece.Position, "Burning");
-                    break;
-
-                case "Commanding Presence":
-                    BoostAdjacentAllies(piece, 5);
-                    break;
-
-                case "Ethereal Link":
-                    ApplyEtherealLink(piece);
-                    break;
-
-                case "Reality Anchor":
-                    ApplyRealityAnchor(piece);
-                    break;
-
-                case "Fire Trail":
-                    ApplyFireTrail(piece);
-                    break;
-
-                case "Molten Core":
-                    ApplyMoltenCore(piece);
-                    break;
-
-                case "Rebel Leader":
-                    ApplyRebelLeader(piece);
-                    break;
-            }
-        }
-
-        private void HealAdjacentAllies(Piece piece, int healAmount)
-        {
-            var allies = Pieces.Where(p => p.Team == piece.Team && IsAdjacent(piece, p)).ToList();
-            foreach (var ally in allies)
-            {
-                CombatManager.HealPiece(piece, ally, healAmount);
-            }
-        }
-
-        private void BoostAdjacentAllies(Piece piece, int attackBoost)
-        {
-            var allies = Pieces.Where(p => p.Team == piece.Team && IsAdjacent(piece, p)).ToList();
-            foreach (var ally in allies)
-            {
-                ally.Attack += attackBoost;
-                LogTurn($"{piece.Team} {piece.Id} boosts {ally.Team} {ally.Id}'s Attack by {attackBoost}!");
-            }
-        }
-
-        private bool IsAdjacentToFriendlyPiece(Piece piece, string type)
-        {
-            return Pieces.Any(p => p.Team == piece.Team && p.Type == type && IsAdjacent(piece, p));
-        }
-
-        public bool IsAdjacent(Piece a, Piece b)
-        {
-            int fileDiff = Math.Abs(a.Position[0] - b.Position[0]);
-            int rankDiff = Math.Abs(a.Position[1] - b.Position[1]);
-            return fileDiff <= 1 && rankDiff <= 1;
-        }
-
-        public bool IsAdjacentToPosition(string position1, string position2)
-        {
-            int fileDiff = Math.Abs(position1[0] - position2[0]);
-            int rankDiff = Math.Abs(position1[1] - position2[1]);
-            return fileDiff <= 1 && rankDiff <= 1;
-        }
-
-        public bool IsTileUnderThreat(string position, string team)
-        {
-            return Pieces.Any(p => p.Team != team && p.Health > 0 && MovementValidator.IsMoveLegal(p, position, Pieces));
-        }
-
-        public void ShowTeamPreview()
-        {
-            Console.WriteLine("\n=== Team Preview ===");
-
-            var packCounts = Pieces
-                .Where(p => !string.IsNullOrEmpty(p.Pack))
-                .GroupBy(p => p.Pack)
-                .ToDictionary(g => g.Key, g => g.Count());
-
-            foreach (var piece in Pieces.Where(p => p.Team == "Player"))
-            {
-                string synergyStatus = packCounts.TryGetValue(piece.Pack, out int count) && count >= 3
-                    ? "(Synergy Active)"
-                    : "";
-                Console.WriteLine($"{piece.Id} ({piece.Type}) - {piece.Pack} {synergyStatus}");
-            }
-
-            Console.WriteLine("=================================");
-        }
-
-        public Board Clone()
-        {
-            return new Board
-            {
-                Pieces = Pieces.Select(p => p.Clone()).ToList(),
-                TurnHistory = new List<string>(TurnHistory)
-            };
-        }
-
-        public void ShowDetailedEndOfGameReport(string winner)
-        {
-            Console.WriteLine("\n=== Detailed End-of-Game Report ===");
-
-            Console.WriteLine($"\nWinner: {winner}");
-            Console.WriteLine($"Total Turns: {TurnHistory.Count}");
-
-            Console.WriteLine("\nPiece Performance:");
-            foreach (var piece in Pieces)
-            {
-                string status = piece.Health > 0 ? "Survived" : "Eliminated";
-                Console.WriteLine($"- {piece.Team} {piece.Id}: {piece.TotalKills} Kills, {piece.TotalDamageDealt} Damage Dealt ({status})");
-            }
-
-            Console.WriteLine("\nAbilities Used:");
-            var abilityUsage = TurnHistory
-                .Where(entry => entry.Contains("used"))
-                .GroupBy(entry => entry.Split(' ')[1] + " " + entry.Split(' ')[2])
-                .ToDictionary(g => g.Key, g => g.Count());
-
-            foreach (var ability in abilityUsage)
-            {
-                Console.WriteLine($"- {ability.Key} used abilities {ability.Value} times");
-            }
-
-            Console.WriteLine("\nEvolution Log:");
-            var evolutionLog = TurnHistory.Where(entry => entry.Contains("evolved into")).ToList();
-            if (evolutionLog.Count > 0)
-            {
-                foreach (var log in evolutionLog)
-                {
-                    Console.WriteLine($"- {log}");
-                }
-            }
-            else
-            {
-                Console.WriteLine("No evolutions occurred.");
-            }
-
-            Console.WriteLine("\nComplete Turn History:");
-            for (int i = 0; i < TurnHistory.Count; i++)
-            {
-                Console.WriteLine($"{i + 1}. {TurnHistory[i]}");
-            }
-
-            Console.WriteLine("==================================");
-        }
-
         public void CheckPawnPromotion(Piece piece)
         {
             if (piece.Type != "Pawn") return;
 
             string promotionRank = piece.Team == "Player" ? "8" : "1";
-            if (!piece.Position.EndsWith(promotionRank)) return;
-
-            string promotedType = piece.Team == "Player" ? AskPlayerForPromotionChoice() : "Queen";
-
-            PromotePawn(piece, promotedType);
+            if (piece.Position.EndsWith(promotionRank))
+            {
+                string promotedType = piece.Team == "Player" ? AskPlayerForPromotionChoice() : "Queen";
+                PromotePawn(piece, promotedType);
+            }
         }
 
         private string AskPlayerForPromotionChoice()
@@ -310,14 +83,14 @@ namespace ChessMonsterTactics
 
         private void PromotePawn(Piece pawn, string newType)
         {
-            var pack = pawn.Pack;  // Retain pack for synergy
+            var pack = pawn.Pack;
             var eligiblePieces = MonsterDatabase.PieceTemplates.Values
                 .Where(p => p.Type == newType && p.Pack == pack)
                 .ToList();
 
             if (eligiblePieces.Count == 0)
             {
-                Console.WriteLine($"❌ No {newType} found in {pack}! Promoting to default Queen.");
+                Console.WriteLine($"❌ No {newType} found in {pack}. Defaulting to Queen.");
                 newType = "Queen";
                 eligiblePieces = MonsterDatabase.PieceTemplates.Values
                     .Where(p => p.Type == "Queen" && p.Pack == pack)
@@ -339,49 +112,183 @@ namespace ChessMonsterTactics
             TileEffects.ApplyEffectsToAllPieces(this);
         }
 
-
         public void SaveSnapshot(int turnNumber)
         {
-            var snapshot = new BoardSnapshot
+            Snapshots.Add(new BoardSnapshot
             {
                 TurnNumber = turnNumber,
                 Pieces = Pieces.Select(p => p.Clone()).ToList(),
-                TileEffects = TileEffects?.CloneTileEffects() ?? new Dictionary<string, string>()
-            };
-
-            Snapshots.Add(snapshot);
+                TileEffects = TileEffects.CloneTileEffects()
+            });
         }
 
         public void RestoreSnapshot(BoardSnapshot snapshot)
         {
             Pieces = snapshot.Pieces.Select(p => p.Clone()).ToList();
-            TileEffects?.RestoreTileEffects(snapshot.TileEffects);
+            TileEffects.RestoreTileEffects(snapshot.TileEffects);
             LogTurn($"Rewound to Turn {snapshot.TurnNumber}");
-        }     
+        }
+
+        public bool CheckWinCondition(out string winner)
+        {
+            bool playerKingAlive = Pieces.Any(p => p.Team == "Player" && p.Type == "King" && p.Health > 0);
+            bool aiKingAlive = Pieces.Any(p => p.Team == "AI" && p.Type == "King" && p.Health > 0);
+
+            if (!playerKingAlive)
+            {
+                winner = "AI Wins!";
+                return true;
+            }
+
+            if (!aiKingAlive)
+            {
+                winner = "Player Wins!";
+                return true;
+            }
+
+            winner = "";
+            return false;
+        }
+
+        public void ShowCompleteTeamPreview()
+        {
+            Console.WriteLine("\n=== Team Preview ===");
+            foreach (var teamGroup in Pieces.GroupBy(p => p.Team))
+            {
+                Console.WriteLine($"\n--- {teamGroup.Key} Team ---");
+
+                var packCounts = teamGroup.GroupBy(p => p.Pack).ToDictionary(g => g.Key, g => g.Count());
+
+                foreach (var piece in teamGroup)
+                {
+                    string synergyStatus = packCounts.TryGetValue(piece.Pack, out int count) && count >= 3
+                        ? "(Synergy Active)"
+                        : "";
+                    Console.WriteLine($"{piece.Id} ({piece.Type}) - {piece.Pack} {synergyStatus}");
+                }
+            }
+            Console.WriteLine("=================================");
+        }
+
+        public void ShowDetailedEndOfGameReport(string winner)
+        {
+            Console.WriteLine($"\n=== End-of-Game Report: {winner} ===");
+            Console.WriteLine($"Total Turns: {TurnHistory.Count}");
+
+            foreach (var piece in Pieces)
+            {
+                string status = piece.Health > 0 ? "Survived" : "Eliminated";
+                Console.WriteLine($"{piece.Team} {piece.Id}: {piece.TotalKills} Kills, {piece.TotalDamageDealt} Damage ({status})");
+            }
+
+            Console.WriteLine("\nComplete Turn Log:");
+            for (int i = 0; i < TurnHistory.Count; i++)
+                Console.WriteLine($"{i + 1}. {TurnHistory[i]}");
+
+            Console.WriteLine("=================================");
+        }
+
+        // ---------------- Passives ----------------
+        private void TriggerPiecePassive(Piece piece)
+        {
+            switch (piece.Passive)
+            {
+                case "Ethereal Link":
+                    ApplyEtherealLink(piece);
+                    break;
+                case "Reality Anchor":
+                    ApplyRealityAnchor(piece);
+                    break;
+                case "Fire Trail":
+                    TileEffects.SetTileEffect(piece.Position, "Burning");
+                    break;
+                case "Molten Core":
+                    ApplyMoltenCore(piece);
+                    break;
+                case "Rebel Leader":
+                    ApplyRebelLeader(piece);
+                    break;
+            }
+        }
+
+        private void ApplyEtherealLink(Piece piece)
+        {
+            foreach (var ally in Pieces.Where(p => p.Team == piece.Team && IsAdjacent(piece, p)))
+            {
+                ally.Defense += 1;
+                LogTurn($"{piece.Team} {piece.Id} grants +1 Defense to {ally.Team} {ally.Id} with Ethereal Link.");
+            }
+        }
+
+        private void ApplyRealityAnchor(Piece piece)
+        {
+            if (HasActivePackBonus(piece.Team, "Arcane Echoes", 3))
+            {
+                piece.Defense += 5;
+                LogTurn($"{piece.Team} {piece.Id} gains +5 Defense from Reality Anchor!");
+            }
+        }
+
+        private void ApplyMoltenCore(Piece piece)
+        {
+            if (IsAdjacentToTileEffect(piece.Position, "Burning"))
+            {
+                piece.Defense += (int)(piece.Defense * 0.10);
+                LogTurn($"{piece.Team} {piece.Id}'s Molten Core activates near burning tiles! Defense boosted.");
+            }
+        }
+
+        private void ApplyRebelLeader(Piece piece)
+        {
+            if (HasActivePackBonus(piece.Team, "Blazing Rebellion", 3))
+            {
+                BoostAllAlliesAttack(piece.Team, 5);
+                LogTurn($"{piece.Team} {piece.Id} boosts all allies with Rebel Leader (+5 Attack).");
+            }
+        }
+
+        private void BoostAllAlliesAttack(string team, int boost)
+        {
+            foreach (var ally in Pieces.Where(p => p.Team == team))
+                ally.Attack += boost;
+        }
+
+        private bool HasActivePackBonus(string team, string pack, int requiredCount) =>
+            Pieces.Count(p => p.Team == team && p.Pack == pack && p.Health > 0) >= requiredCount;
+
+        private bool IsAdjacentToTileEffect(string position, string effect) =>
+            TileEffects.GetAdjacentTiles(position).Any(t => TileEffects.TileEffects.TryGetValue(t, out string e) && e == effect);
+
+        public bool IsAdjacent(Piece a, Piece b)
+        {
+            int fileDiff = Math.Abs(a.Position[0] - b.Position[0]);
+            int rankDiff = Math.Abs(a.Position[1] - b.Position[1]);
+            return fileDiff <= 1 && rankDiff <= 1;
+        }
+
+        public Board Clone()
+        {
+            var clonedBoard = new Board();
+
+            // Deep copy all pieces
+            clonedBoard.Pieces = Pieces.Select(p => p.Clone()).ToList();
+
+            // Copy turn history
+            clonedBoard.TurnHistory = new List<string>(TurnHistory);
+
+            // Copy tile effects
+            clonedBoard.TileEffects.TileEffects = new Dictionary<string, string>(TileEffects.TileEffects);
+
+            // Other managers may or may not need copying depending on design
+            // Add any other data to clone here if needed
+
+            return clonedBoard;
+        }
 
         public string GetAIPack()
         {
-            var aiPiece = Pieces.FirstOrDefault(p => p.Team == "AI");
-            return aiPiece?.Pack ?? "Starter Pack";
-        }
-
-        public bool IsTileSafe(string position)
-        {
-            // Safe means: No enemies threaten this tile, and the tile effect is not harmful.
-            if (IsTileUnderThreat(position, "AI"))
-                return false;  // AI is looking for safe tiles for its own pieces.
-
-            if (TileEffects.TileEffects.TryGetValue(position, out string effect))
-            {
-                // If there’s an effect, check if it’s harmful.
-                string[] harmfulEffects = { "Burning", "Poisoned", "Cursed", "Spiked" };
-                if (harmfulEffects.Contains(effect))
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            var firstAIPiece = Pieces.FirstOrDefault(p => p.Team == "AI");
+            return firstAIPiece?.Pack ?? "Starter Pack";
         }
 
         public bool IsTileDefensive(string position)
@@ -389,156 +296,58 @@ namespace ChessMonsterTactics
             return TileEffects.TileEffects.TryGetValue(position, out string effect) && effect == "Shielded";
         }
 
-        private void AddPiecesToTeam(string pieceType, int requiredCount)
+        public bool IsTileSafe(string position)
         {
-            List<string> availablePacks = new() { "Fire Pack", "Cyber Pack", "Shadow Pack" };
+            // Safe = No enemies threaten it and no harmful effects
+            if (IsTileUnderThreat(position, "AI"))
+                return false;
 
-            for (int i = 0; i < requiredCount; i++)
+            if (TileEffects.TileEffects.TryGetValue(position, out string effect))
             {
-                Console.WriteLine($"\nSelect {pieceType} {i + 1}/{requiredCount}");
-                Console.WriteLine("Available Packs:");
-
-                for (int j = 0; j < availablePacks.Count; j++)
-                {
-                    Console.WriteLine($"{j + 1} - {availablePacks[j]}");
-                }
-
-                string packChoice = Console.ReadLine()?.Trim();
-                if (packChoice?.ToLower() == "quit") Environment.Exit(0);
-
-                int packIndex = int.TryParse(packChoice, out int result) ? result - 1 : 0;
-                string selectedPack = availablePacks[Math.Clamp(packIndex, 0, availablePacks.Count - 1)];
-
-                var template = MonsterDatabase.GetPieceTemplateByTypeAndPack(pieceType, selectedPack);
-                if (template == null)
-                {
-                    Console.WriteLine($"❌ No {pieceType} available in {selectedPack}. Please select again.");
-                    i--;  // Try again for this slot
-                    continue;
-                }
-
-                var newPiece = template.Clone();
-                newPiece.Id = $"{newPiece.Id}{i + 1}";
-                newPiece.Team = "Player";
-                newPiece.Position = GetStartingPosition(pieceType, i + 1, "Player");
-                Pieces.Add(newPiece);
-
-                Console.WriteLine($"✅ Added {newPiece.Id} from {newPiece.Pack}.");
+                string[] harmfulEffects = { "Burning", "Poisoned", "Cursed", "Spiked" };
+                if (harmfulEffects.Contains(effect))
+                    return false;
             }
+
+            return true;
         }
 
-        private string GetStartingPosition(string pieceType, int count, string team)
+        public bool IsAdjacentToPosition(string pos1, string pos2)
         {
-            // Define starting positions based on the team and piece type
-            if (team == "Player")
+            (int row1, int col1) = MovementValidator.PositionToCoordinates(pos1);
+            (int row2, int col2) = MovementValidator.PositionToCoordinates(pos2);
+
+            int rowDiff = Math.Abs(row1 - row2);
+            int colDiff = Math.Abs(col1 - col2);
+
+            return rowDiff <= 1 && colDiff <= 1;
+        }
+
+
+        public bool IsTileUnderThreat(string position, string friendlyTeam)
+        {
+            return Pieces.Any(p => p.Team != friendlyTeam && p.Health > 0 &&
+                                    MovementValidator.IsMoveLegal(p, position, Pieces));
+        }
+
+        public void DisplayBoard()
+        {
+            Console.WriteLine("\nCurrent Board:");
+            foreach (var piece in Pieces)
             {
-                return pieceType switch
-                {
-                    "Pawn" => $"A{count}",
-                    "Knight" => count == 1 ? "B1" : "G1",
-                    "Bishop" => count == 1 ? "C1" : "F1",
-                    "Rook" => count == 1 ? "A1" : "H1",
-                    "Queen" => "D1",
-                    "King" => "E1",
-                    _ => "A1"
-                };
+                Console.WriteLine($"{piece.Team} {piece.Id} ({piece.Type}) at {piece.Position} - HP: {piece.Health} Energy: {piece.Energy} Level: {piece.Level}");
             }
-            else
+
+            foreach (var (position, effect) in TileEffects.TileEffects)
             {
-                return pieceType switch
-                {
-                    "Pawn" => $"A{count}",
-                    "Knight" => count == 1 ? "B8" : "G8",
-                    "Bishop" => count == 1 ? "C8" : "F8",
-                    "Rook" => count == 1 ? "A8" : "H8",
-                    "Queen" => "D8",
-                    "King" => "E8",
-                    _ => "A8"
-                };
+                Console.WriteLine($"Tile {position} - {effect}");
             }
+            Console.WriteLine();
         }
 
-        private void ApplyEtherealLink(Piece piece)
-        {
-            var allies = Pieces.Where(p => p.Team == piece.Team && IsAdjacent(piece, p));
-            foreach (var ally in allies)
-            {
-                ally.Defense += 1;
-                LogTurn($"{piece.Team} {piece.Id}'s Ethereal Link grants +1 Defense to {ally.Team} {ally.Id}.");
-            }
-        }
 
-        private void ApplyRealityAnchor(Piece piece)
-        {
-            int arcaneCount = Pieces.Count(p => p.Team == piece.Team && p.Pack == "Arcane Echoes" && p.Health > 0);
-            if (arcaneCount >= 3)
-            {
-                piece.Defense += 5;
-                LogTurn($"{piece.Team} {piece.Id}'s Reality Anchor activates! +5 Defense.");
-            }
-        }
 
-        private void ApplyFireTrail(Piece piece)
-        {
-            TileEffects.SetTileEffect(piece.Position, "Burning");
-            LogTurn($"{piece.Team} {piece.Id}'s Fire Trail leaves {piece.Position} burning!");
-        }
 
-        private void ApplyMoltenCore(Piece piece)
-        {
-            bool nearBurningTile = GetAdjacentTiles(piece.Position).Any(pos =>
-                TileEffects.TileEffects.TryGetValue(pos, out string effect) && effect == "Burning");
-
-            if (nearBurningTile)
-            {
-                piece.Defense += (int)(piece.Defense * 0.10);  // 10% Defense boost
-                LogTurn($"{piece.Team} {piece.Id}'s Molten Core activates near burning tiles! Defense increased.");
-            }
-        }
-
-        private void ApplyRebelLeader(Piece piece)
-        {
-            int rebellionCount = Pieces.Count(p => p.Team == piece.Team && p.Pack == "Blazing Rebellion" && p.Health > 0);
-            if (rebellionCount >= 3)
-            {
-                foreach (var ally in Pieces.Where(p => p.Team == piece.Team))
-                {
-                    ally.Attack += 5;
-                }
-                LogTurn($"{piece.Team} {piece.Id}'s Rebel Leader boosts all allies' Attack by +5!");
-            }
-        }
-
-        private List<string> GetAdjacentTiles(string position)
-        {
-            char file = position[0];
-            int rank = int.Parse(position[1].ToString());
-
-            List<string> adjacent = new()
-            {
-                $"{(char)(file - 1)}{rank}",     // Left
-                $"{(char)(file + 1)}{rank}",     // Right
-                $"{file}{rank - 1}",             // Down
-                $"{file}{rank + 1}",             // Up
-                $"{(char)(file - 1)}{rank - 1}", // Down-left
-                $"{(char)(file + 1)}{rank - 1}", // Down-right
-                $"{(char)(file - 1)}{rank + 1}", // Up-left
-                $"{(char)(file + 1)}{rank + 1}"  // Up-right
-            };
-
-            return adjacent.Where(pos => IsValidTile(pos)).ToList();
-        }
-
-        private bool IsValidTile(string position)
-        {
-            if (position.Length != 2) return false;
-            char file = position[0];
-            int rank = position[1] - '0';
-
-            return file >= 'A' && file <= 'H' && rank >= 1 && rank <= 8;
-        }
 
     }
-
-
 }

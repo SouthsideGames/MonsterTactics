@@ -157,5 +157,34 @@ namespace ChessMonsterTactics
         {
             TileEffects = new Dictionary<string, string>(effects);
         }
+
+        public List<string> GetAdjacentTiles(string position)
+        {
+            char file = position[0];
+            int rank = int.Parse(position[1].ToString());
+
+            List<string> adjacent = new()
+            {
+                $"{(char)(file - 1)}{rank}",     // Left
+                $"{(char)(file + 1)}{rank}",     // Right
+                $"{file}{rank - 1}",             // Down
+                $"{file}{rank + 1}",             // Up
+                $"{(char)(file - 1)}{rank - 1}", // Down-left
+                $"{(char)(file + 1)}{rank - 1}", // Down-right
+                $"{(char)(file - 1)}{rank + 1}", // Up-left
+                $"{(char)(file + 1)}{rank + 1}"  // Up-right
+            };
+
+            return adjacent.Where(IsValidTile).ToList();
+        }
+
+        private bool IsValidTile(string position)
+        {
+            if (position.Length != 2) return false;
+            char file = position[0];
+            int rank = position[1] - '0';
+
+            return file >= 'A' && file <= 'H' && rank >= 1 && rank <= 8;
+        }
     }
 }

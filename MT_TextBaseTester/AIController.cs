@@ -9,37 +9,26 @@ namespace ChessMonsterTactics
         private static readonly Random Random = new();
         private AIPersonalityManager personalityManager;
 
-        public void TakeTurn(Board board, string team, int difficulty)
+        public void TakeTurn(Board board, string team, int difficulty, AIPersonalityType? overridePersonality = null)
         {
             board.ProcessStartOfTurnEffects(team);
 
             if (personalityManager == null)
             {
-                var aiPack = board.GetAIPack();
-                var personality = MonsterDatabase.PackPersonalities.ContainsKey(aiPack) ? MonsterDatabase.PackPersonalities[aiPack] : AIPersonalityType.Balanced;
-
+                var personality = overridePersonality ?? MonsterDatabase.PackPersonalities[board.GetAIPack()];
                 personalityManager = new AIPersonalityManager(board, $"{team}_AI", personality);
             }
 
             var pieces = board.Pieces.Where(p => p.Team == team && p.Health > 0).ToList();
-
             if (pieces.Count == 0) return;
 
-            if (difficulty == 3) // Hard - Use Monte Carlo Tree Search
-            {
-                var bestMove = MonteCarloTreeSearch(board, team, 50);
-                ExecuteMove(board, bestMove);
-            }
-            else // Easy & Medium - Rule-based with Alpha-Beta for Medium
-            {
-                var bestMove = EvaluateBestAction(board, pieces, team, difficulty);
-                ExecuteMove(board, bestMove);
-            }
+            var bestMove = EvaluateBestMove(board, pieces, team, difficulty);
+            ExecuteMoveAndPostActions(board, bestMove);
         }
 
-        private (Piece piece, string move, string ability) EvaluateBestAction(Board board, List<Piece> pieces, string team, int difficulty)
+        private (Piece piece, string move) EvaluateBestMove(Board board, List<Piece> pieces, string team, int difficulty)
         {
-            (Piece piece, string move, string ability) bestAction = (null, null, null);
+            var bestMove = (piece: (Piece)null, move: (string)null);
             int bestScore = int.MinValue;
 
             foreach (var piece in pieces)
@@ -48,42 +37,30 @@ namespace ChessMonsterTactics
 
                 foreach (var move in legalMoves)
                 {
-                    int moveScore = EvaluateMove(board, piece, move, team, difficulty);
-                    if (moveScore > bestScore)
+                    int score = EvaluateMove(board, piece, move, team, difficulty);
+                    if (score > bestScore)
                     {
-                        bestScore = moveScore;
-                        bestAction = (piece, move, null);
-                    }
-                }
-
-                if (piece.Energy > 0 && !string.IsNullOrEmpty(piece.Ability))
-                {
-                    int abilityScore = EvaluateAbility(board, piece, team);
-                    if (abilityScore > bestScore)
-                    {
-                        bestScore = abilityScore;
-                        bestAction = (piece, null, piece.Ability);
+                        bestScore = score;
+                        bestMove = (piece, move);
                     }
                 }
             }
 
-            return bestAction;
+            return bestMove;
         }
 
         private int EvaluateMove(Board board, Piece piece, string move, string team, int difficulty)
         {
-            int score = 0;
-
             var simulatedBoard = board.Clone();
             var simulatedPiece = simulatedBoard.Pieces.First(p => p.Id == piece.Id);
             simulatedBoard.MovePiece(simulatedPiece, move);
 
-            if (difficulty == 2) // Alpha-Beta for Medium
+            int score = personalityManager.EvaluateMoveBonus(piece, move);
+
+            if (difficulty == 2)
             {
                 score += AlphaBeta(simulatedBoard, 2, int.MinValue, int.MaxValue, team == "Player");
             }
-
-            score += personalityManager.EvaluateMoveBonus(piece, move);
 
             return score;
         }
@@ -96,36 +73,29 @@ namespace ChessMonsterTactics
             }
 
             var pieces = board.Pieces.Where(p => p.Health > 0).ToList();
-            int value;
+            int value = maximizing ? int.MinValue : int.MaxValue;
 
-            if (maximizing)
+            foreach (var piece in pieces.Where(p => p.Team == (maximizing ? "Player" : "AI")))
             {
-                value = int.MinValue;
-                foreach (var piece in pieces.Where(p => p.Team == "Player"))
+                foreach (var move in MovementValidator.GetLegalMoves(piece, board.Pieces))
                 {
-                    foreach (var move in MovementValidator.GetLegalMoves(piece, board.Pieces))
+                    var clone = board.Clone();
+                    clone.MovePiece(clone.Pieces.First(p => p.Id == piece.Id), move);
+
+                    int childValue = AlphaBeta(clone, depth - 1, alpha, beta, !maximizing);
+
+                    if (maximizing)
                     {
-                        var clone = board.Clone();
-                        clone.MovePiece(clone.Pieces.First(p => p.Id == piece.Id), move);
-                        value = Math.Max(value, AlphaBeta(clone, depth - 1, alpha, beta, false));
+                        value = Math.Max(value, childValue);
                         alpha = Math.Max(alpha, value);
-                        if (alpha >= beta) break;
                     }
-                }
-            }
-            else
-            {
-                value = int.MaxValue;
-                foreach (var piece in pieces.Where(p => p.Team == "AI"))
-                {
-                    foreach (var move in MovementValidator.GetLegalMoves(piece, board.Pieces))
+                    else
                     {
-                        var clone = board.Clone();
-                        clone.MovePiece(clone.Pieces.First(p => p.Id == piece.Id), move);
-                        value = Math.Min(value, AlphaBeta(clone, depth - 1, alpha, beta, true));
+                        value = Math.Min(value, childValue);
                         beta = Math.Min(beta, value);
-                        if (alpha >= beta) break;
                     }
+
+                    if (alpha >= beta) return value;
                 }
             }
 
@@ -137,93 +107,51 @@ namespace ChessMonsterTactics
             int score = 0;
             foreach (var piece in board.Pieces)
             {
-                if (piece.Team == "Player") score += piece.Health + piece.Attack;
-                if (piece.Team == "AI") score -= piece.Health + piece.Attack;
+                int pieceValue = piece.Health + piece.Attack;
+                score += piece.Team == "Player" ? pieceValue : -pieceValue;
             }
             return score;
         }
 
-        private (Piece piece, string move, string ability) MonteCarloTreeSearch(Board board, string team, int simulations)
+        private void ExecuteMoveAndPostActions(Board board, (Piece piece, string move) action)
         {
-            var legalMoves = board.Pieces
-                .Where(p => p.Team == team && p.Health > 0)
-                .SelectMany(p => MovementValidator.GetLegalMoves(p, board.Pieces)
-                    .Select(move => (piece: p, move)))
+            if (action.piece == null || action.move == null)
+            {
+                board.LogTurn("AI found no valid move.");
+                return;
+            }
+
+            board.LogTurn($"{action.piece.Team} {action.piece.Id} moves from {action.piece.Position} to {action.move}");
+            board.MovePiece(action.piece, action.move);
+
+            // Post-move actions
+            board.ApplyTileEffectsToAllPieces();
+            board.CheckPawnPromotion(action.piece);
+            TriggerPostMoveActions(board, action.piece);
+        }
+
+        private void TriggerPostMoveActions(Board board, Piece piece)
+        {
+            var adjacentEnemies = board.Pieces
+                .Where(p => p.Team != piece.Team && p.Health > 0 && board.IsAdjacent(piece, p))
                 .ToList();
 
-            var winRates = new Dictionary<(Piece piece, string move), double>();
-
-            foreach (var (piece, move) in legalMoves)
+            if (adjacentEnemies.Any())
             {
-                int wins = 0;
-
-                for (int i = 0; i < simulations; i++)
-                {
-                    var simulatedBoard = board.Clone();
-                    var simulatedPiece = simulatedBoard.Pieces.First(p => p.Id == piece.Id);
-                    simulatedBoard.MovePiece(simulatedPiece, move);
-
-                    string winner = SimulateRandomGame(simulatedBoard);
-                    if (winner.Contains(team)) wins++;
-                }
-
-                winRates[(piece, move)] = (double)wins / simulations;
+                var target = adjacentEnemies[Random.Next(adjacentEnemies.Count)];
+                board.CombatManager.DamagePiece(piece, target, piece.Attack);
             }
 
-            var best = winRates.OrderByDescending(w => w.Value).Select(w => w.Key).FirstOrDefault();
-
-            // Return as (piece, move, ability) with null ability since MCTS doesn't handle abilities
-            return (best.piece, best.move, null);
-        }
-
-        private string SimulateRandomGame(Board board)
-        {
-            string winner = "";
-
-            while (!board.CheckWinCondition(out winner))
+            // Auto-trigger ability (no movement abilities allowed)
+            if (piece.Energy > 0 && !string.IsNullOrEmpty(piece.Ability))
             {
-                var pieces = board.Pieces.Where(p => p.Health > 0).ToList();
-                var piece = pieces[Random.Next(pieces.Count)];
-                var moves = MovementValidator.GetLegalMoves(piece, board.Pieces);
-
-                if (moves.Count > 0)
+                if (!AbilityManager.AbilityInvolvesMovement(piece.Ability))
                 {
-                    var move = moves[Random.Next(moves.Count)];
-                    board.MovePiece(piece, move);
+                    board.AbilityManager.UseAbility(piece, piece.Ability);
                 }
             }
-
-            return winner;
         }
 
-        private int EvaluateAbility(Board board, Piece piece, string team)
-        {
-            int score = 0;
-
-            if (piece.Ability.Contains("Damage"))
-            {
-                var nearbyEnemies = board.Pieces.Count(p => p.Team != team && board.IsAdjacent(piece, p));
-                score += nearbyEnemies * 10;
-            }
-
-            return score;
-        }
-
-        private void ExecuteMove(Board board, (Piece piece, string move, string ability) action)
-        {
-            if (action.ability != null)
-            {
-                board.AbilityManager.UseAbility(action.piece, action.ability);
-            }
-            else if (action.move != null)
-            {
-                board.LogTurn($"{action.piece.Team} {action.piece.Id} moved from {action.piece.Position} to {action.move}");
-                board.MovePiece(action.piece, action.move);
-                board.ApplyTileEffectsToAllPieces();
-                // ✅ Automatically check for promotion after AI moves
-                board.CheckPawnPromotion(action.piece);
-
-            }
-        }
+  
     }
 }
